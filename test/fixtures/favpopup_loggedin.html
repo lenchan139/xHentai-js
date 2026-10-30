@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Add to Favorites</title></head>
+<body>
+<div class="ido">
+  <h1>Add to Favorites</h1>
+  <form method="post" action="gallerypopups.php?gid=4291744&amp;t=019be8a2c7&amp;act=addfav">
+    <input type="hidden" name="csrf" value="test-token">
+    <select name="favcat">
+      <option value="0" selected="selected">Favorites 0</option>
+      <option value="1">Favorites 1</option>
+      <option value="2">Favorites 2</option>
+      <option value="-1">Remove from Favorites</option>
+    </select>
+    <input type="text" name="favnote" value="">
+    <input type="submit" name="update" value="Apply Changes">
+  </form>
+</div>
+</body>
+</html>

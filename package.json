@@ -1,0 +1,17 @@
+{
+  "name": "ehentai-app-userscript",
+  "private": true,
+  "version": "1.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "bash build.sh",
+    "test": "node test/parse.test.mjs",
+    "test:ui": "node test/ui.test.mjs",
+    "shots": "node test/shots.mjs",
+    "test:live": "node test/live.mjs"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.5",
+    "puppeteer-core": "^25.16.0"
+  }
+}
