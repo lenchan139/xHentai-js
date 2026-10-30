@@ -1,10 +1,9 @@
 # E-Hentai App — a JHenTai-style mobile shell
 
 A single-file userscript that turns **e-hentai.org** and **exhentai.org** into a fast,
-app-like mobile experience. It is inspired by the UI/UX of
-[JHenTai](https://github.com/jiangtian616/JHenTai) — the mobile layout, gallery cards,
-detail page and reader — but it is written from scratch in plain JavaScript, with no
-build step required at install time.
+app-like mobile experience. The layout, gallery cards, detail page and reader are
+inspired by [JHenTai](https://github.com/jiangtian616/JHenTai), but everything here is
+plain JavaScript running in your own browser.
 
 > Not affiliated with E-Hentai, ExHentai, or JHenTai. It is a client-side skin: all
 > requests go to the real site with your own session. It does not bypass age gates,
@@ -22,68 +21,25 @@ build step required at install time.
 
 ## Features
 
-### App shell
-- Sticky top bar, **5-tab bottom navigation** (Home / Popular / Favorites / Search / More)
-  and a slide-out drawer, modelled on JHenTai's `mobile_layout_page_v2`.
-- Safe-area aware on iPhone (notch / home indicator), light and dark themes.
-- In-app navigation with History API: back preserves the loaded gallery list, its
-  infinite-scroll pages, and your scroll position.
-
-### Gallery lists
-- Card grid (2 or 3 columns) or compact list rows.
-- Category badges and tag chips use the same category/namespace colors as JHenTai.
-- Page counts, uploader, date, read-progress bar and `P12` resume badge.
-- Category chips for Doujinshi, Manga, Artist CG, Game CG, Western, Non-H,
-  Image Set, Cosplay, Asian Porn, Misc.
-- Infinite scroll; refresh; optional cover blur with tap-to-reveal.
-- Long lists render in 30-card batches, so very large folders stay responsive.
-- Works on front page, category pages, tag pages, uploader pages, Popular, Watched,
-  Favorites (including folder chips when the page exposes them) and search results.
-
-### Gallery detail
-- Full-bleed hero with blurred cover, title and Japanese title.
-- One-tap actions: **Read / Continue**, Favorite, Rate, Archive, Torrent, Comments,
-  Share, Original.
-- Info grid (posted, language, pages, size, favorites, rating).
-- Namespace-grouped tag pills, tap a tag to search it.
-- Comment preview and a full comments sheet (sanitized, read-only).
-- Thumbnail grid built from E-Hentai's sprite sheets, with page-range controls and
-  a **Jump to page** dialog.
-- Reading progress is stored per gallery, so the Read button becomes `P12` and opens
-  exactly where you stopped.
-- Rating uses E-Hentai's public `rategallery` API with the page's own API key.
-- Favorites use the site's own favorites popup form (folder + note), submitted
-  in-place; no separate server.
-
-### Reader
-- **Vertical continuous** or **paged horizontal** mode; switch inside the reader.
-- Width / contain image fit, configurable preload (1–4 pages).
-- Tap zones: left third = previous, right third = next, center = toggle chrome.
-- Auto-hiding top/bottom chrome, page counter, range slider and jump-to-page.
-- Prefetches page HTML and images; retries broken images; can open the current
-  image, the original-resolution image, or the original page.
-- Saves progress on every page change and on `pagehide`.
-- Paged mode uses native scroll-snap, so swiping feels like a native reader.
-
-### Search
-- Keyword / tag search with E-Hentai syntax (`language:chinese`, `f:sole female`,
-  `artist:shibi`, …).
-- Include/exclude any of the 10 categories (`f_cats`), minimum rating, page-count
-  range, torrents-only, include expunged.
-- Recent searches; the Edit chip pre-fills the last query and category mask.
-- Search is executed on the real site; no proxy.
-
-### Library & settings
-- Local **History** with covers, resume position and relative timestamps.
-- Favorites are warmed in the background after launch and cached for five minutes, so
-  the tab is instant once the warm-up completes. Reader prefetch never blocks a tab
-  navigation.
-- Local reading progress; clear history / progress / page cache.
-- Theme (auto / dark / light), layout, columns, tag visibility, cover blur.
-- Reader mode, image fit, preload and tap zones.
-- Account/login state, original-site escape hatch, reset settings.
-
----
+- **App shell** — sticky top bar, five-tab bottom navigation (Home, Popular,
+  Favorites, Search, More), slide-out drawer, iPhone safe areas, dark/light themes.
+- **Gallery lists** — 2/3-column cards or compact rows, category and tag colors,
+  page count, uploader, read progress, infinite scroll, cover blur, favorites folder
+  chips.
+- **Gallery detail** — full-bleed cover, one-tap Read/Favorite/Rate/Archive/Torrent/
+  Comments/Share, info grid, grouped tags, page-preview grid with jump-to-page.
+  The cover and title appear immediately when you tap a card, even if the site is
+  slow to send the rest.
+- **Reader** — vertical continuous or paged horizontal, width/contain fit,
+  1–4 pages of preload, tap zones, auto-hiding chrome, range slider, jump-to-page,
+  retry, original page, and a **Resampled / Original** image-resolution switch.
+- **Search** — E-Hentai syntax, all 10 categories, rating, page range, torrents,
+  expunged, recent searches.
+- **Library** — local reading history, resume positions, clear history/progress/
+  cache.
+- **Login** — password or cookie login. Favorites and ratings work in-app; other
+  account actions open the original site.
+- **No tracking** — no proxy, no analytics, no third-party server.
 
 ## Download
 
@@ -94,10 +50,6 @@ build step required at install time.
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
-
-> GitHub's raw CDN caches `main` for a few minutes after a push. The versioned
-> snapshot above installs v1.0.8 immediately; its header still points at `main` for
-> future automatic updates.
 
 - [Install v1.0.8](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
@@ -111,88 +63,65 @@ mainstream userscript manager.
 
 ### iPhone / iPad (Safari)
 
-**Option A — Tampermonkey (the manager in the original request)**
+**Option A — Tampermonkey (auto-updates)**
 
-1. Install **Tampermonkey** from the App Store (it is a paid app on iOS/iPadOS).
+1. Install **Tampermonkey** from the App Store (paid on iOS/iPadOS).
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
-   on `e-hentai.org` and `exhentai.org`. In Safari you can also use the **AA** menu →
-   **Manage Extensions**.
+   on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
+   works.
 3. Open the [v1.0.8 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
-   in Safari. Tampermonkey should offer to install it. If Safari displays the script
-   as text instead, open the Tampermonkey app, tap **+**, paste the contents, and save.
-4. Visit `https://e-hentai.org/` (and `https://exhentai.org/` if you use it).
+   in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
+   tap **+**, paste the contents, and save.
+4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
 
 **Option B — Userscripts (free, open source)**
 
 1. Install **Userscripts** from the App Store.
-2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on
-   both sites.
+2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
+   sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
    On My iPhone), then save the [v1.0.8 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
 ### macOS Safari / desktop browsers
-- **Safari (macOS):** install Tampermonkey from the App Store, enable it in Safari
-  settings, add the script, and allow it for both domains.
+
+- **Safari (macOS):** install Tampermonkey, enable it in Safari settings, add the
+  script, and allow it for both domains.
 - **Chrome / Edge / Firefox / Brave:** install Tampermonkey or Violentmonkey, create
   a new script, paste the file, save.
 
 ### Enable it on both domains
+
 The script is matched separately for `e-hentai.org` and `exhentai.org`. Enabling it
 for one does not enable it for the other.
 
----
+## Updating
 
-## Auto-update
-
-The header contains:
+The header points at the `main` branch:
 
 ```js
 // @downloadURL  https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
 // @updateURL    https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
 ```
 
-**Tampermonkey** checks that URL periodically and installs a newer `@version`
+**Tampermonkey** checks that URL periodically and installs newer versions
 automatically. To force a check: Tampermonkey → **Utilities → Check for userscript
-updates**. The header of the versioned install snapshot still points at `main`, so it
-stays on the main-branch build after the first install.
-
-Every push to `main` that touches `src/` runs
-[`.github/workflows/build.yml`](.github/workflows/build.yml): it runs `npm ci`,
-`npm test`, `npm run build`, and commits the rebuilt `ehentai-app.user.js` if it
-changed. The raw URL therefore always serves the latest built artifact.
-
-To publish a newer version:
-
-```bash
-npm run release   # bumps the patch version in package.json and rebuilds
-git add package.json package-lock.json ehentai-app.user.js
-git commit -m "release: vX.Y.Z"
-git tag vX.Y.Z
-git push && git push origin vX.Y.Z
-```
-
-`build.sh` injects the `package.json` version into both `@version` and the in-app
-`VERSION` constant.
-
-After pushing a release, update the versioned snapshot links in this README (the
-`vX.Y.Z` URLs) if you want a cache-free install link for the new version; `main`
-remains the auto-update source either way.
+updates**. The versioned install link above also updates from `main` after the first
+install.
 
 > **Userscripts (Safari iOS)** does not guarantee background update checks. Re-open
-> the raw link or use the app's update/reload action. Tampermonkey is the
-> auto-updating path.
-
----
+> the raw link or the app's reload action when a new version is announced.
+> Tampermonkey is the auto-updating path.
 
 ## Logging in
 
-Most of the app works as a guest. Favorites, watched tags and some gallery pages
-need a session.
+Most of the app works as a guest. Favorites, watched tags and some galleries need a
+session.
 
 ### E-Hentai
-Open the drawer → **Log in**. Two methods:
+
+Drawer → **Log in**. Two methods:
 
 - **Password:** posts to the E-Hentai forum login and returns. You briefly leave the
   app.
@@ -202,56 +131,63 @@ Open the drawer → **Log in**. Two methods:
   - `ipb_pass_hash`
   - `igneous`
 
-  The app writes them for the current site with `path=/` and a one-year expiry.
-  You can copy them on desktop with DevTools → **Application → Cookies →
-  e-hentai.org**, or with a cookie-editor Safari extension.
+  The app writes them for the current site with `path=/` and a one-year expiry. You
+  can copy them on desktop with DevTools → **Application → Cookies → e-hentai.org**,
+  or with a cookie-editor extension.
 
 ### ExHentai
-ExHentai requires the same cookies to be set for **`exhentai.org`**:
+
+ExHentai needs the same cookies set for **`exhentai.org`**:
 
 - Log in on `e-hentai.org` first, then open `exhentai.org`.
 - If you still get the sad panda, use a cookie editor to set `ipb_member_id`,
   `ipb_pass_hash` and `igneous` for `exhentai.org`, then reload.
-- The in-app Cookie login writes cookies for the domain it is currently running on.
-  It cannot write `exhentai.org` cookies while it is running on `e-hentai.org`
-  (browser security), so do it on the ExHentai side or use a cookie editor.
+- The in-app Cookie login writes cookies for the domain it is running on. It cannot
+  write `exhentai.org` cookies while running on `e-hentai.org` (browser security),
+  so do it on the ExHentai side or use a cookie editor.
 
-The **username/password** form logs into the forum and may not be enough for
-ExHentai; the cookie method is the reliable one.
-
----
+The username/password form logs into the forum and may not be enough for ExHentai;
+the cookie method is the reliable one.
 
 ## Using it
 
 ### Navigation
+
 - **Home:** recent galleries, category chips, grid/list toggle.
 - **Popular / Favorites / Search:** bottom tabs.
-- **More:** opens the drawer (Front Page, Popular, Favorites, Watched, Toplists,
-  History, Settings, Login, Theme, Open original site).
+- **More:** Front Page, Popular, Favorites, Watched, Toplists, History, Settings,
+  Login, Theme, Open original site.
 - Tap a card for the detail page; tap **Read** to enter the reader.
 - Browser back (including the iOS edge-swipe) returns to the previous app page.
 
 ### Reader gestures
+
 - Tap the **center** to show/hide the chrome.
 - Tap the **left/right third** to go to the previous/next page.
-- Vertical mode: scroll continuously.
-- Paged mode: swipe horizontally; the next page snaps into view.
+- Vertical mode: scroll continuously. Paged mode: swipe horizontally; pages snap.
 - Use the range slider or the counter pill for fast navigation.
-- Menu: reading mode, image fit, jump, reload, open image, gallery, original page,
-  share.
+- Menu: reading mode, image fit, image resolution, jump, reload, open image,
+  gallery, original page, share.
+
+### Image resolution
+
+The reader uses E-Hentai's **resampled** WebP by default (usually 1280 px, about
+100–300 KB). To read the original files, open the reader menu → **Image resolution** →
+**Original**, or set it globally under **Settings → Reader → Image resolution**.
+Originals can be several MB; if one fails, only that page falls back to resampled.
 
 ### Search tips
+
 - `language:chinese`, `language:translated`
 - `artist:shibi`, `group:monyamonya`, `parody:blue archive`
 - `f:sole female`, `m:sole male`
 - Combine with free text; quote multi-word tags if needed.
 
 ### Escape hatch
-Add `?ehx=off` to any URL to render the original site instead of the app, e.g.
-`https://e-hentai.org/g/1234567/abcdef1234/?ehx=off`. The drawer's
-**Open original site** does this for you.
 
----
+Add `?ehx=off` to any URL to render the original site instead of the app, e.g.
+`https://e-hentai.org/g/1234567/abcdef1234/?ehx=off`. The drawer's **Open original
+site** does this for you.
 
 ## What is taken over (and what is not)
 
@@ -269,122 +205,71 @@ Add `?ehx=off` to any URL to render the original site instead of the app, e.g.
 Tag editing, comment posting, archive downloads and torrents stay on the original
 site. Favorites and ratings are the two account actions implemented in-app.
 
----
-
-## Design notes (what was referenced from JHenTai)
-
-This is a vanilla-JS reimplementation, not a port. The UX decisions come from:
-
-- `lib/src/pages/layout/mobile_v2/mobile_layout_page_v2.dart` — bottom navigation,
-  left drawer, lazy tab rendering.
-- `lib/src/pages/layout/mobile_v2/mobile_layout_page_v2_state.dart` — the tab list
-  (Home, Search, Popular, Ranklist, Favorite, Watched, History, Download, Setting).
-- `lib/src/widget/eh_gallery_list_card_.dart` and
-  `eh_gallery_waterflow_card.dart` — cover + title + uploader + tags + page-count
-  cards, category/rating chips, read-progress indicator.
-- `lib/src/config/ui_config.dart` — the category palette
-  (`Doujinshi #fc4e4e`, `Manga #fcb417`, …) and tag namespace colors.
-- `lib/src/pages/details/details_page.dart` — hero/cover layout, the horizontal
-  action row (Read, Download, Favorite, Rating, Archive, H2H, Similar, Torrent),
-  info table, tags, comments, thumbnails.
-- `lib/src/pages/read/read_page.dart` and `read/layout/*` — vertical list, paged
-  horizontal and double-column reading, tap zones, progress saving, prefetching.
-
-The Flutter app uses Material 3 with a purple seed; this script mirrors that with a
-small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode).
-
----
-
 ## Privacy and security
 
 - No third-party server, proxy, analytics or telemetry.
 - Gallery/list/reader requests are plain `fetch` calls to the **current origin**, so
   they use your existing cookies.
-- The only cross-origin fetch is the rating call to
-  `https://api.e-hentai.org/api.php`; it is sent with `credentials: "omit"` and uses
-  the API key that the gallery page itself embeds. The optional password login is a
-  normal form POST to the E-Hentai forum, and external links open in a new tab.
+- The only cross-origin request is the rating call to `https://api.e-hentai.org/api.php`;
+  it is sent without credentials and uses the API key the gallery page itself embeds.
+  The optional password login is a normal form POST to the E-Hentai forum.
 - Settings, reading progress, history and recent searches live in `localStorage`.
-  Cookies live in Safari's normal cookie store.
+  Cookies stay in Safari's normal cookie store.
 - Remove everything by deleting the script and clearing website data for the domain.
-- Comments are sanitized before rendering (scripts, event handlers and non-HTTP
-  URLs are stripped).
-
----
+- Comments are sanitized before rendering (scripts, event handlers and non-HTTP URLs
+  are stripped).
 
 ## Troubleshooting
 
 **Blank or unstyled page**
 - Confirm the URL is one of the supported routes above.
-- Reload once. If it persists, check that the extension is enabled for the exact
-  domain (`www.` included) and that another e-hentai userscript is not conflicting.
-- Temporarily open `…?ehx=off` to use the original page.
+- Reload once. Check that the extension is enabled for the exact domain (`www.`
+  included) and that no other e-hentai userscript conflicts.
+- Open `…?ehx=off` to use the original page.
 
 **"This page requires you to log on"**
-- Use the drawer → Log in. On iPhone, cookie login is the most reliable.
+- Drawer → Log in. On iPhone, cookie login is the most reliable.
 
 **Sad panda / white screen on ExHentai**
 - Set the three cookies for `exhentai.org` (see above), or log in on E-Hentai first
-  and then reload ExHentai.
-- Remove the stale `yay` cookie and ExHentai site data: **Safari → Settings → Privacy
-  → Manage Website Data → `exhentai.org` → Remove**, then open
-  `https://e-hentai.org/home.php`, log in, and open ExHentai.
+  and reload ExHentai.
+- Remove stale ExHentai site data: **Safari → Settings → Privacy → Manage Website
+  Data → `exhentai.org` → Remove**, then open `https://e-hentai.org/home.php`, log in,
+  and open ExHentai. This also removes the problematic `yay` cookie.
 - The authenticating cookies are `igneous`, `ipb_member_id`, and `ipb_pass_hash`;
-  `yay` alone is not enough. The app's Cookie login on ExHentai sets that trio.
+  `yay` alone is not enough.
 
 **"E-Hentai is rate-limiting requests" (HTTP 509)**
-- Wait a minute; lower **Preload pages** in Settings; avoid opening many galleries
-  at once.
+- Wait a minute; lower **Preload pages** in Settings; avoid opening many galleries at
+  once.
 
 **Images fail to load**
-- A failed cover now falls back to a neutral placeholder instead of a broken image.
+- A failed cover falls back to a neutral placeholder instead of a broken image.
 - Tap **Retry** in the page placeholder; the app re-fetches the image page and gets a
   fresh signed URL. If it still fails, use **Original** for that page.
 
 **Favorites feels slow**
-- The app warms Favorites in the background shortly after launch and keeps a five-minute
-  cache. The first load still depends on E-Hentai's own favorites query; if it is slow,
-  the site is slow. Use the refresh button or open the original page. If a Cloudflare
-  check appears, complete it on the original site — the app now leaves that check
-  visible instead of covering it.
-- **ExHentai sometimes aborts**: page fetches now wait up to 60 seconds on ExHentai
-  (35 seconds on E-Hentai). If it still times out, the ExHentai HTML server is not
-  responding; the reader images are on a different host and may still work. Retry or
-  use the original page.
-- **Covers are slow but the reader is fast**: the app uses the same 250px-wide `/w/`
-  cover as the site's own list page (about 20–35 KB); the detail page uses that exact
-  same URL, not a larger body image. The cover hosts (`ehgt.org`, `s.exhentai.org`)
-  often take 2–4 seconds per request and throttle parallel connections, so loading
-  all 25 at once pushed the last cover past 20 seconds in testing. v1.0.8 preconnects
-  to the real cover/reader origins, loads only cards near the viewport (first 4 are
-  high-priority), and parses every E-Hentai list layout. A slow cover-host route
-  (DNS/VPN/ISP) or an AdGuard/uBlock rule on those hosts can still add delay.
-- **Gallery detail takes a while to open**: tapping a card now paints the known
-  cover, title, category and a working **Read** button immediately from the list row;
-  tags, stats and the page grid fill in when the gallery HTML arrives. The 20-page
-  thumbnail sprite (a random `hath.network` host) is only requested when the Pages
-  grid approaches the viewport, so it no longer competes with the hero cover. The
-  first reader page is warmed in the background while you read the details.
-- **Reader images are resampled by default**: the reader uses the image served by
-  the `/s/` page, which is E-Hentai's resampled WebP (usually 1280px wide, about
-  100–300 KB). Open the reader menu → **Image resolution** and choose **Original**
-  to load `/fullimg/` instead, or switch back to **Resampled** there; the same
-  choice is available under **Settings → Reader → Image resolution**. Original
-  files can be several MB, and if one fails to load the reader falls back to the
-  resampled image for that page only. Slowness with resampled images is the
-  `hath.network` host or your route.
-- **Covers missing after the first screen (fixed in v1.0.8)**: the app forced
-  `?inline_set=dm_e` (Extended layout) but the parser only understood Compact
-  markup, so fetched lists had no cover URLs. v1.0.8 parses Compact, Extended,
-  Thumbnail and Minimal layouts and requests Compact (`dm_l`), which does not
-  rewrite the site's display-mode cookie.
-- **ExHentai favorites HTML is slow**: the real `favorites.php` response was measured
-  at ~11 seconds on ExHentai's server (DOMContentLoaded ~9s, 22 KB transfer). The app
-  warms Favorites after launch and keeps a five-minute cache; the first load is
-  server-bound and the covers start only after that HTML arrives.
+- The app warms Favorites shortly after launch and keeps a five-minute cache. The
+  first load still depends on E-Hentai's own favorites query. If a Cloudflare check
+  appears, complete it on the original site; the app leaves it visible.
+
+**Covers or the detail page feel slow**
+- Covers are the same 250 px thumbnails the site itself uses; the cover hosts can take
+  a few seconds and throttle parallel requests. The app preconnects to the real hosts
+  and loads only the covers near your viewport.
+- When you tap a card, the known cover and title appear immediately; tags, stats and
+  the page grid fill in when the gallery page responds.
+- A slow VPN/DNS route or an AdGuard/uBlock rule on `ehgt.org`, `s.exhentai.org` or
+  `hath.network` can add delay.
+
+**Reader images are slow**
+- The reader uses resampled images by default. Check the reader menu → **Image
+  resolution**; if it is set to **Original**, switch back to **Resampled**.
+- The image host is `hath.network`; a slow route or blocker on it will slow pages even
+  though the HTML is fine.
 
 **Favorites form does not open**
-- The site's favorites popup requires a valid session. Log in; if the popup layout
+- The site's favorites popup needs a valid session. Log in; if the popup layout
   changed, the app falls back to opening the original popup.
 
 **Infinite scroll stops**
@@ -392,96 +277,12 @@ small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode
   logged in).
 
 **Reader feels heavy on a very large gallery (1000+ pages)**
-- It creates one placeholder per page. Use a smaller preload value; the app is aimed
-  at normal galleries and phones. The original page is always available via
-  **Original**.
+- It creates one placeholder per page. Use a smaller preload value; the app targets
+  normal galleries and phones. The original page is always available via **Original**.
 
-**A script update changed the site markup**
-- Parsers are isolated in `src/40-http-parsers.js`; update the selectors and run
-  `npm test`.
-
----
-
-## Development
-
-The installable file is built by concatenating small source parts, so the code stays
-readable:
-
-```
-src/00-header.js          userscript metadata + IIFE
-src/10-utils.js           helpers, storage, route classification
-src/20-icons.js           inline SVG icon set
-src/30-css.js             the whole stylesheet
-src/40-http-parsers.js    fetch layer + HTML parsers
-src/60-app.js             app shell, router, drawer, sheets, login
-src/70-list.js            gallery list page + infinite scroll
-src/75-detail.js          gallery detail page + favorites/rating/comments
-src/80-reader.js          reader core, layouts, progress, prefetch
-src/85-reader-ui.js       reader chrome, gestures, menu, jump
-src/90-pages.js           search, settings, history, toplists
-src/99-boot.js            bootstrap and teardown
-```
-
-```bash
-npm install          # linkedom + puppeteer-core (dev only)
-npm run build        # writes ehentai-app.user.js
-npm test             # 67 parser assertions against real HTML snapshots
-npm run test:ui      # 58 headless-Chrome UI assertions
-npm run shots        # regenerates shots/*.png (placeholder art)
-npm run test:live    # optional: real-site smoke test (hits e-hentai.org)
-npm run release      # bump patch version + rebuild for a new userscript release
-```
-
-- `test/fixtures/` contains saved current E-Hentai pages used by the parser and UI
-  tests (front page, search, tag, all four list layouts, E-Hentai and wrapped
-  ExHentai detail pages, a 1,614-page gallery page 2, reader,
-  toplist, favorites login bounce). They are test data only.
-- The UI test starts a local server, rewrites `e-hentai.org` links to localhost, and
-  injects the userscript with Puppeteer. It requires Google Chrome at the standard
-  macOS path; adjust `executablePath` if needed.
-- `npm run test:live` injects the script into the real e-hentai.org, opens the first
-  gallery and the reader, and saves screenshots to `shots/live/` (gitignored).
-- The GitHub Actions workflow rebuilds and commits the userscript on source pushes to
-  `main`; it skips commits that only touch the built file, so there is no rebuild loop.
-- Node 20+ recommended.
-
-### Testing in Safari 27+ (local)
-
-Safari 27 includes a built-in MCP server:
-
-```bash
-safaridriver --mcp
-```
-
-It needs a one-time **Safari → Settings → Developer → Allow Remote Automation**
-(or run `safaridriver --enable` with an admin password). The server exposes
-navigation, page text/DOM, screenshots, interactions, JavaScript evaluation, and
-Inspector network timings.
-
-Register it with OpenCode under `mcp.servers` in
-`~/.config/opencode/opencode.jsonc`:
-
-```jsonc
-"safari": {
-  "type": "local",
-  "command": ["/System/Cryptexes/App/usr/bin/safaridriver", "--mcp"],
-  "enabled": true
-}
-```
-
-Local harnesses open a dedicated Safari tab with local fixtures and placeholder
-images:
-
-```bash
-npm run test:safari       # Safari WebDriver
-npm run test:safari:mcp   # Safari MCP stdio client
-```
-
-The commands fail with the “Allow Remote Automation” message until that switch is
-on. Once it is, `list_network_requests` / `get_network_request` can measure the
-real `favorites.php` and `ehgt.org` request timings in Safari.
-
----
+**Still stuck?**
+- Open an issue at <https://github.com/lenchan139/xHentai-js/issues> with the URL, the
+  version shown in the drawer, your device/Safari version, and any console errors.
 
 ## Credits
 
@@ -493,3 +294,8 @@ real `favorites.php` and `ehgt.org` request timings in Safari.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Contributing, architecture, build, tests, fixtures and the Safari debugging harnesses
+are documented in [AGENTS.md](AGENTS.md).
