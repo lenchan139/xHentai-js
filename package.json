@@ -9,7 +9,9 @@
     "test:ui": "node test/ui.test.mjs",
     "shots": "node test/shots.mjs",
     "test:live": "node test/live.mjs",
-    "release": "npm version patch --no-git-tag-version && npm run build"
+    "release": "npm version patch --no-git-tag-version && npm run build",
+    "test:safari": "node test/safari.mjs",
+    "test:safari:mcp": "node test/safari-mcp.mjs"
   },
   "devDependencies": {
     "linkedom": "^0.18.5",

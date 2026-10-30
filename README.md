@@ -412,6 +412,42 @@ npm run release      # bump patch version + rebuild for a new userscript release
   `main`; it skips commits that only touch the built file, so there is no rebuild loop.
 - Node 20+ recommended.
 
+### Testing in Safari 27+ (local)
+
+Safari 27 includes a built-in MCP server:
+
+```bash
+safaridriver --mcp
+```
+
+It needs a one-time **Safari → Settings → Developer → Allow Remote Automation**
+(or run `safaridriver --enable` with an admin password). The server exposes
+navigation, page text/DOM, screenshots, interactions, JavaScript evaluation, and
+Inspector network timings.
+
+Register it with OpenCode under `mcp.servers` in
+`~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+"safari": {
+  "type": "local",
+  "command": ["/System/Cryptexes/App/usr/bin/safaridriver", "--mcp"],
+  "enabled": true
+}
+```
+
+Local harnesses open a dedicated Safari tab with local fixtures and placeholder
+images:
+
+```bash
+npm run test:safari       # Safari WebDriver
+npm run test:safari:mcp   # Safari MCP stdio client
+```
+
+The commands fail with the “Allow Remote Automation” message until that switch is
+on. Once it is, `list_network_requests` / `get_network_request` can measure the
+real `favorites.php` and `ehgt.org` request timings in Safari.
+
 ---
 
 ## Credits
