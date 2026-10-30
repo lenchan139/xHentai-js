@@ -97,7 +97,13 @@ await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile
 await page.setRequestInterception(true);
 page.on('request', (req) => {
   const url = req.url();
-  if (url.startsWith(BASE)) return req.continue();
+  if (url.startsWith(BASE)) {
+    // Delay gallery HTML so the instant detail preview can be asserted.
+    if (/\/g\/\d+\/[0-9a-f]+\/?/.test(url) && req.resourceType() === 'fetch') {
+      return setTimeout(() => req.continue().catch(() => {}), 700);
+    }
+    return req.continue();
+  }
   if (req.resourceType() === 'image' || /\.(webp|png|jpe?g|gif)(\?|$)/i.test(url)) {
     return req.respond({ status: 200, contentType: 'image/png', body: PNG });
   }
@@ -151,7 +157,10 @@ try {
   console.log('\nDetail');
   await page.click('.ehx-card');
   await page.waitForFunction(() => location.pathname.startsWith('/g/'), { timeout: 6000 });
-  await page.waitForSelector('.ehx-dtitle', { timeout: 8000 });
+  await page.waitForSelector('.ehx-dtitle', { timeout: 2000 });
+  ok('detail hero paints before gallery HTML', await count('[data-act="fav"]') === 0);
+  ok('preview offers Read immediately', await count('.ehx-actions [data-act="read"]') === 1);
+  await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
   ok('detail hero title', (await txt('.ehx-dtitle')).includes('ADE'), await txt('.ehx-dtitle'));
   ok('18 thumbnails', await count('.ehx-thumb') === 18, String(await count('.ehx-thumb')));
   ok('tags rendered', await count('.ehx-tagpill') > 8);
@@ -236,11 +245,14 @@ try {
   await new Promise((r) => setTimeout(r, 380));
   await page.click('.ehx-drawer-item[href="/#ehx-history"]');
   await page.waitForSelector('.ehx-card', { timeout: 6000 });
+  await new Promise((r) => setTimeout(r, 500));
   ok('history has an entry', await count('.ehx-card') >= 1, String(await count('.ehx-card')));
   ok('history card shows progress', (await txt('.ehx-card .ehx-badge.ehx-resume')).startsWith('P'));
 
   console.log('\nPaged reader from history');
   step('click history card');
+  await page.$eval('.ehx-card', (el) => el.scrollIntoView({ block: 'center' }));
+  await new Promise((r) => setTimeout(r, 150));
   await page.click('.ehx-card');
   await page.waitForSelector('.ehx-reader.ehx-paged', { timeout: 10000 });
   await page.waitForSelector('.ehx-reader .ehx-rpage img', { timeout: 10000 });
@@ -280,6 +292,7 @@ try {
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
   await page.click('.ehx-card');
   await page.waitForSelector('.ehx-dtitle', { timeout: 8000 });
+  await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
   await page.click('[data-act="fav"]');
   await page.waitForSelector('.ehx-sheet', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 420));

@@ -722,7 +722,14 @@
       const r = classify(abs);
       if (r.name !== 'external') {
         e.preventDefault();
-        navigate(abs);
+        // Hand the list item to the detail page so its hero can paint before
+        // the (often slow) gallery HTML arrives.
+        let gallery = null;
+        if (a.classList && a.classList.contains('ehx-card') && app.listState) {
+          const gid = a.getAttribute('data-gid');
+          if (gid) gallery = (app.listState.items || []).find((g) => String(g.gid) === gid) || null;
+        }
+        navigate(abs, gallery ? { gallery } : {});
       } else if (sameOrigin(abs)) {
         e.preventDefault();
         location.href = abs;

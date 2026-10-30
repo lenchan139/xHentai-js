@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.5
+// @version      1.0.6
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.5';
+  const VERSION = '1.0.6';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -2268,7 +2268,14 @@
       const r = classify(abs);
       if (r.name !== 'external') {
         e.preventDefault();
-        navigate(abs);
+        // Hand the list item to the detail page so its hero can paint before
+        // the (often slow) gallery HTML arrives.
+        let gallery = null;
+        if (a.classList && a.classList.contains('ehx-card') && app.listState) {
+          const gid = a.getAttribute('data-gid');
+          if (gid) gallery = (app.listState.items || []).find((g) => String(g.gid) === gid) || null;
+        }
+        navigate(abs, gallery ? { gallery } : {});
       } else if (sameOrigin(abs)) {
         e.preventDefault();
         location.href = abs;
@@ -2738,7 +2745,7 @@
     const baseW = (data.thumbs.find((t) => t.w) || {}).w || 200;
     const cells = data.thumbs.map((t) => {
       const sprite = t.sprite
-        ? `<div class="ehx-thumb-inner" style="width:${t.w}px;height:${t.h}px;background-image:url('${esc(t.sprite)}');background-position:${t.offX}px ${t.offY}px"></div>`
+        ? `<div class="ehx-thumb-inner" data-sprite="${esc(t.sprite)}" data-ox="${t.offX}" data-oy="${t.offY}" style="width:${t.w}px;height:${t.h}px"></div>`
         : `<img loading="lazy" decoding="async" src="${esc(t.img)}" alt="">`;
       const ratio = t.sprite ? `${t.w}/${t.h}` : `${t.w}/${t.h}`;
       return `<a class="ehx-thumb${currentIndex === t.idx ? ' ehx-read' : ''}" href="${esc(t.href)}" style="aspect-ratio:${ratio}">
@@ -2845,6 +2852,36 @@
     return fd;
   }
 
+  // Paint the gallery hero from the list item immediately. The gallery HTML
+  // can take several seconds on ExHentai; showing the known title/cover means
+  // the tap never lands on an empty skeleton.
+  function detailPreviewHtml(g) {
+    const cover = g.cover || '';
+    const cat = g.category || 'Misc';
+    const color = categoryColor(cat);
+    return `<div class="ehx-detail">
+      <div class="ehx-dhero">
+        ${cover ? `<div class="ehx-dhero-bg" style="background-image:url('${esc(cover)}')"></div>` : ''}
+        <div class="ehx-dhero-shade"></div>
+        <div class="ehx-dhero-inner">
+          <div class="ehx-dcover">${cover ? `<img src="${esc(cover)}" alt="" fetchpriority="high" decoding="async">` : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 30)}</div>`}</div>
+          <div class="ehx-dhead">
+            <div class="ehx-dtitle">${esc(g.title || 'Gallery')}</div>
+            <div class="ehx-dmeta">
+              <span class="ehx-pill" style="color:${color};border-color:${color}55"><span class="ehx-dot" style="background:${color}"></span>${esc(cat)}</span>
+              ${g.pages ? `<span class="ehx-pill">${formatNum(g.pages)} pages</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ehx-dstats">${g.uploader ? `<span>${icon('user', 12)} <b>${esc(g.uploader)}</b></span>` : ''}</div>
+      <div class="ehx-actions">
+        <button class="ehx-action ehx-primary" data-act="read"><span class="ehx-abox">${icon('book', 22)}</span><span>Read</span></button>
+      </div>
+      <div style="padding:14px">${skeletonGrid(2)}</div>
+    </div>`;
+  }
+
   async function renderDetailPage(route, url, initialDoc, opts = {}) {
     const gid = route.gid;
     const token = route.token;
@@ -2855,11 +2892,28 @@
       title: 'Gallery',
       right: `${iconBtn('detail-share', 'share', 'Share')}${iconBtn('detail-menu', 'menu', 'Gallery menu')}`,
     });
-    app.main.innerHTML = `
-      <div class="ehx-detail">
-        <div class="ehx-skel" style="height:260px;border-radius:0"></div>
-        <div style="padding:14px">${skeletonGrid(2)}</div>
-      </div>`;
+    if (!initialDoc && opts.gallery) {
+      renderTopbar({
+        left: iconBtn('back', 'back', 'Back'),
+        title: opts.gallery.title || 'Gallery',
+        right: `${iconBtn('detail-share', 'share', 'Share')}${iconBtn('detail-menu', 'menu', 'Gallery menu')}`,
+      });
+      document.title = (opts.gallery.title || 'Gallery') + ' · ' + SITE_NAME;
+      app.main.innerHTML = detailPreviewHtml(opts.gallery);
+      // The reader can start from the route's gid/token even before the
+      // gallery HTML is parsed.
+      onAction('read', async () => {
+        const first = await resolvePageUrl(gid, token, 1);
+        if (first) navigate(first);
+        else toast('Could not resolve the first page');
+      });
+    } else {
+      app.main.innerHTML = `
+        <div class="ehx-detail">
+          <div class="ehx-skel" style="height:260px;border-radius:0"></div>
+          <div style="padding:14px">${skeletonGrid(2)}</div>
+        </div>`;
+    }
 
     let data = null;
     if (initialDoc) {
@@ -2962,9 +3016,29 @@
         <div style="height:18px"></div>
       </div>`;
 
-    // Thumbnail sprite scaling.
+    // Thumbnail sprite scaling. The sprite sheet lives on a slow random
+    // hath.network host, so don't request it until the grid is near the
+    // viewport — it used to compete with the hero cover on first paint.
     const thumbsEl = $('#ehx-thumbs');
     if (thumbsEl) {
+      const cleanups = [];
+      const paintSprites = () => {
+        thumbsEl.querySelectorAll('[data-sprite]').forEach((el) => {
+          el.style.backgroundImage = `url('${el.dataset.sprite}')`;
+          el.style.backgroundPosition = `${el.dataset.ox}px ${el.dataset.oy}px`;
+        });
+      };
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          io.disconnect();
+          paintSprites();
+        }, { rootMargin: '400px 0px' });
+        io.observe(thumbsEl);
+        cleanups.push(() => io.disconnect());
+      } else {
+        paintSprites();
+      }
       const setScale = () => {
         const cell = thumbsEl.querySelector('.ehx-thumb');
         if (!cell) return;
@@ -2976,8 +3050,17 @@
       if ('ResizeObserver' in window) {
         const ro = new ResizeObserver(setScale);
         ro.observe(thumbsEl);
-        app.cleanup = () => ro.disconnect();
+        cleanups.push(() => ro.disconnect());
       }
+      app.cleanup = () => cleanups.forEach((fn) => fn());
+    }
+
+    // Warm the first reader page while the user reads the details, so Read
+    // is a cache hit instead of an /s/ round-trip.
+    if (firstThumb && firstThumb.href) {
+      const warm = () => { fetchDoc(firstThumb.href, { ttl: 300000 }).catch(() => { /* background */ }); };
+      if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 3500 });
+      else setTimeout(warm, 1800);
     }
 
     app.refresh = () => {
