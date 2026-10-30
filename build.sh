@@ -18,4 +18,6 @@ cat \
   src/99-boot.js \
   > "$OUT"
 
+node scripts/version.mjs
+
 echo "built $OUT — $(wc -l < "$OUT" | tr -d ' ') lines, $(wc -c < "$OUT" | tr -d ' ') bytes"

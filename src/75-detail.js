@@ -200,7 +200,7 @@
           ${cover ? `<div class="ehx-dhero-bg" style="background-image:url('${esc(cover)}')"></div>` : ''}
           <div class="ehx-dhero-shade"></div>
           <div class="ehx-dhero-inner">
-            <div class="ehx-dcover">${cover ? `<img src="${esc(cover)}" alt="">` : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 30)}</div>`}</div>
+            <div class="ehx-dcover">${cover ? `<img src="${esc(cover)}" alt="" fetchpriority="high" decoding="async">` : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 30)}</div>`}</div>
             <div class="ehx-dhead">
               <div class="ehx-dtitle">${esc(data.title)}</div>
               ${data.jpTitle && data.jpTitle !== data.title ? `<div class="ehx-dsub">${esc(data.jpTitle)}</div>` : ''}

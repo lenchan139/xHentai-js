@@ -564,14 +564,17 @@
     const rating = g.rating ? `<span class="ehx-rating">${icon('star', 11)}${g.rating.toFixed(1)}</span>` : '';
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
     const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
+    const imgAttrs = opts.eager
+      ? 'loading="eager" fetchpriority="high" decoding="async"'
+      : 'loading="lazy" decoding="async"';
     const cover = g.cover
-      ? `<img loading="lazy" decoding="async" src="${esc(g.cover)}" alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
+      ? `<img ${imgAttrs} src="${esc(g.cover)}" alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
       ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag" style="--tagc:${tagColor(t.ns)}">${esc(t.name)}</span>`).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
-      <div class="ehx-cover">
+      <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">
         ${cover}
         <span class="ehx-badge ehx-cat" style="--catcolor:${color}">${esc(cat)}</span>
         ${pages}
@@ -697,11 +700,18 @@
     }, true);
 
     // A blocked/failed cover should not leave an ugly broken image.
+    document.addEventListener('load', (e) => {
+      const img = e.target;
+      if (!img || img.tagName !== 'IMG') return;
+      const cover = img.closest && img.closest('.ehx-cover');
+      if (cover) cover.classList.remove('ehx-cover-loading');
+    }, true);
     document.addEventListener('error', (e) => {
       const img = e.target;
       if (!img || img.tagName !== 'IMG') return;
       const cover = img.closest && img.closest('.ehx-cover');
       if (!cover || cover.querySelector('.ehx-cover-fallback')) return;
+      cover.classList.remove('ehx-cover-loading');
       img.remove();
       const fb = document.createElement('div');
       fb.className = 'ehx-cover-fallback ehx-center';
@@ -766,6 +776,15 @@
     vp.name = 'viewport';
     vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5';
     document.head.appendChild(vp);
+
+    for (const href of ['https://ehgt.org']) {
+      for (const rel of ['preconnect', 'dns-prefetch']) {
+        const l = document.createElement('link');
+        l.rel = rel;
+        l.href = href;
+        document.head.appendChild(l);
+      }
+    }
 
     let tc = document.querySelector('meta[name="theme-color"]');
     if (!tc) {

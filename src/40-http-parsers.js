@@ -46,7 +46,7 @@
       }
       fetchStarted.add(abs);
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), IS_EX ? 60000 : 35000);
       try {
         const res = await fetch(abs, {
           credentials: 'same-origin',
@@ -102,7 +102,7 @@
     const abs = absUrl(url);
     return withFetchSlot(async () => {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), IS_EX ? 45000 : 25000);
       try {
         const res = await fetch(abs, {
           method: 'POST',

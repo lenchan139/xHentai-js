@@ -10,6 +10,10 @@ build step required at install time.
 > requests go to the real site with your own session. It does not bypass age gates,
 > GP costs, or site rules.
 
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fmain%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+[![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
+
 | Home | Detail | Reader |
 | --- | --- | --- |
 | ![Home](shots/01-home.png) | ![Detail](shots/02-detail.png) | ![Reader](shots/03-reader.png) |
@@ -81,11 +85,20 @@ build step required at install time.
 
 ---
 
-## Install
+## Download
 
-The file to install is [`ehentai-app.user.js`](ehentai-app.user.js). It has no
-external dependencies and uses no `GM_*` APIs, so it works in every mainstream
-userscript manager.
+**Raw userscript (the URL the script auto-updates from):**
+
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
+
+- [Open ehentai-app.user.js raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+- [GitHub repository](https://github.com/lenchan139/xHentai-js)
+- [Built file in the repository](ehentai-app.user.js)
+
+The script has no external dependencies and uses no `GM_*` APIs, so it works in every
+mainstream userscript manager.
+
+## Install
 
 ### iPhone / iPad (Safari)
 
@@ -95,8 +108,9 @@ userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. In Safari you can also use the **AA** menu →
    **Manage Extensions**.
-3. Open the Tampermonkey app, tap **+**, paste the whole contents of
-   `ehentai-app.user.js`, and save.
+3. Open the [raw download link](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+   in Safari. Tampermonkey should offer to install it. If Safari displays the script
+   as text instead, open the Tampermonkey app, tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/` if you use it).
 
 **Option B — Userscripts (free, open source)**
@@ -105,11 +119,9 @@ userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on
    both sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save `ehentai-app.user.js` into it.
+   On My iPhone), then save the [raw userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+   into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
-
-> If you install from a URL, open the raw `ehentai-app.user.js` link in Safari and
-> let your manager import it.
 
 ### macOS Safari / desktop browsers
 - **Safari (macOS):** install Tampermonkey from the App Store, enable it in Safari
@@ -120,6 +132,43 @@ userscript manager.
 ### Enable it on both domains
 The script is matched separately for `e-hentai.org` and `exhentai.org`. Enabling it
 for one does not enable it for the other.
+
+---
+
+## Auto-update
+
+The header contains:
+
+```js
+// @downloadURL  https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
+// @updateURL    https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
+```
+
+**Tampermonkey** checks that URL periodically and installs a newer `@version`
+automatically. To force a check: Tampermonkey → **Utilities → Check for userscript
+updates**. The script is installed from the raw `main` link above, so it stays on the
+main-branch build.
+
+Every push to `main` that touches `src/` runs
+[`.github/workflows/build.yml`](.github/workflows/build.yml): it runs `npm ci`,
+`npm test`, `npm run build`, and commits the rebuilt `ehentai-app.user.js` if it
+changed. The raw URL therefore always serves the latest built artifact.
+
+To publish a newer version:
+
+```bash
+npm run release   # bumps the patch version in package.json and rebuilds
+git add package.json package-lock.json ehentai-app.user.js
+git commit -m "release: vX.Y.Z"
+git push
+```
+
+`build.sh` injects the `package.json` version into both `@version` and the in-app
+`VERSION` constant.
+
+> **Userscripts (Safari iOS)** does not guarantee background update checks. Re-open
+> the raw link or use the app's update/reload action. Tampermonkey is the
+> auto-updating path.
 
 ---
 
@@ -279,6 +328,14 @@ small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode
   the site is slow. Use the refresh button or open the original page. If a Cloudflare
   check appears, complete it on the original site — the app now leaves that check
   visible instead of covering it.
+- **ExHentai sometimes aborts**: page fetches now wait up to 60 seconds on ExHentai
+  (35 seconds on E-Hentai). If it still times out, the ExHentai HTML server is not
+  responding; the reader images are on a different host and may still work. Retry or
+  use the original page.
+- **Covers are slow but the reader is fast**: gallery covers come from `ehgt.org`
+  while reader images come from `hath.network`. The app now preconnects to `ehgt.org`,
+  marks the first six covers as high-priority, and shows a shimmer placeholder while
+  they load. A slow `ehgt.org` route (DNS/VPN/ISP) still limits the covers.
 
 **Favorites form does not open**
 - The site's favorites popup requires a valid session. Log in; if the popup layout
@@ -326,6 +383,7 @@ npm test             # 44 parser assertions against real HTML snapshots
 npm run test:ui      # 46 headless-Chrome UI assertions
 npm run shots        # regenerates shots/*.png (placeholder art)
 npm run test:live    # optional: real-site smoke test (hits e-hentai.org)
+npm run release      # bump patch version + rebuild for a new userscript release
 ```
 
 - `test/fixtures/` contains saved current E-Hentai pages used by the parser and UI
@@ -336,6 +394,8 @@ npm run test:live    # optional: real-site smoke test (hits e-hentai.org)
   macOS path; adjust `executablePath` if needed.
 - `npm run test:live` injects the script into the real e-hentai.org, opens the first
   gallery and the reader, and saves screenshots to `shots/live/` (gitignored).
+- The GitHub Actions workflow rebuilds and commits the userscript on source pushes to
+  `main`; it skips commits that only touch the built file, so there is no rebuild loop.
 - Node 20+ recommended.
 
 ---

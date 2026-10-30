@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.1
+// @version      1.0.3
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
+// @homepageURL  https://github.com/lenchan139/xHentai-js
+// @supportURL   https://github.com/lenchan139/xHentai-js/issues
+// @downloadURL  https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
+// @updateURL    https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
 // @match        https://e-hentai.org/*
 // @match        https://www.e-hentai.org/*
 // @match        https://exhentai.org/*

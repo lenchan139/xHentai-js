@@ -1,17 +1,27 @@
 {
   "name": "ehentai-app-userscript",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "build": "bash build.sh",
     "test": "node test/parse.test.mjs",
     "test:ui": "node test/ui.test.mjs",
     "shots": "node test/shots.mjs",
-    "test:live": "node test/live.mjs"
+    "test:live": "node test/live.mjs",
+    "release": "npm version patch --no-git-tag-version && npm run build"
   },
   "devDependencies": {
     "linkedom": "^0.18.5",
     "puppeteer-core": "^25.16.0"
-  }
+  },
+  "description": "JHenTai-style mobile userscript for e-hentai.org and exhentai.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lenchan139/xHentai-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lenchan139/xHentai-js/issues"
+  },
+  "homepage": "https://github.com/lenchan139/xHentai-js#readme"
 }

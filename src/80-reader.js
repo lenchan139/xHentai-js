@@ -247,6 +247,7 @@
       img.alt = 'Page ' + idx;
       img.decoding = 'async';
       img.loading = 'eager';
+      img.setAttribute('fetchpriority', 'high');
       img.draggable = false;
       img.onload = () => {
         el.dataset.loaded = '1';

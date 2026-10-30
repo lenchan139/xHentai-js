@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.1
+// @version      1.0.3
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
+// @homepageURL  https://github.com/lenchan139/xHentai-js
+// @supportURL   https://github.com/lenchan139/xHentai-js/issues
+// @downloadURL  https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
+// @updateURL    https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js
 // @match        https://e-hentai.org/*
 // @match        https://www.e-hentai.org/*
 // @match        https://exhentai.org/*
@@ -32,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.1';
+  const VERSION = '1.0.3';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -394,6 +398,7 @@
     --accent2:#6750a4;
     --danger:#ff6f86;
     --ok:#71d69b;
+    --shimmer:#2a2433;
     --shadow:0 8px 26px rgba(0,0,0,.35);
     --sat:env(safe-area-inset-top,0px);
     --sab:env(safe-area-inset-bottom,0px);
@@ -415,6 +420,7 @@
     --accent2:#d0bcff;
     --danger:#c33a52;
     --ok:#25824d;
+    --shimmer:#e9e1f2;
     --shadow:0 8px 24px rgba(50,20,90,.12);
   }
   *,*::before,*::after{box-sizing:border-box}
@@ -537,7 +543,10 @@
     transition:transform .14s ease;
   }
   .ehx-card:active{transform:scale(.985)}
-  .ehx-cover{position:relative;aspect-ratio:3/4;background:var(--card2);overflow:hidden}
+  .ehx-cover{position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--card2)}
+  .ehx-cover.ehx-cover-loading{
+    background:linear-gradient(100deg,var(--card2) 20%,var(--shimmer) 40%,var(--card2) 60%);
+    background-size:200% 100%;animation:ehx-shimmer 1.6s linear infinite}
   .ehx-cover img{width:100%;height:100%;object-fit:cover;display:block;background:var(--card2)}
   .ehx-cover-fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted2);background:var(--card2)}
   .ehx-cover:after{content:"";position:absolute;inset:auto 0 0 0;height:42%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.52));pointer-events:none}
@@ -975,7 +984,7 @@
       }
       fetchStarted.add(abs);
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), IS_EX ? 60000 : 35000);
       try {
         const res = await fetch(abs, {
           credentials: 'same-origin',
@@ -1031,7 +1040,7 @@
     const abs = absUrl(url);
     return withFetchSlot(async () => {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), IS_EX ? 45000 : 25000);
       try {
         const res = await fetch(abs, {
           method: 'POST',
@@ -2088,14 +2097,17 @@
     const rating = g.rating ? `<span class="ehx-rating">${icon('star', 11)}${g.rating.toFixed(1)}</span>` : '';
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
     const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
+    const imgAttrs = opts.eager
+      ? 'loading="eager" fetchpriority="high" decoding="async"'
+      : 'loading="lazy" decoding="async"';
     const cover = g.cover
-      ? `<img loading="lazy" decoding="async" src="${esc(g.cover)}" alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
+      ? `<img ${imgAttrs} src="${esc(g.cover)}" alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
       ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag" style="--tagc:${tagColor(t.ns)}">${esc(t.name)}</span>`).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
-      <div class="ehx-cover">
+      <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">
         ${cover}
         <span class="ehx-badge ehx-cat" style="--catcolor:${color}">${esc(cat)}</span>
         ${pages}
@@ -2221,11 +2233,18 @@
     }, true);
 
     // A blocked/failed cover should not leave an ugly broken image.
+    document.addEventListener('load', (e) => {
+      const img = e.target;
+      if (!img || img.tagName !== 'IMG') return;
+      const cover = img.closest && img.closest('.ehx-cover');
+      if (cover) cover.classList.remove('ehx-cover-loading');
+    }, true);
     document.addEventListener('error', (e) => {
       const img = e.target;
       if (!img || img.tagName !== 'IMG') return;
       const cover = img.closest && img.closest('.ehx-cover');
       if (!cover || cover.querySelector('.ehx-cover-fallback')) return;
+      cover.classList.remove('ehx-cover-loading');
       img.remove();
       const fb = document.createElement('div');
       fb.className = 'ehx-cover-fallback ehx-center';
@@ -2290,6 +2309,15 @@
     vp.name = 'viewport';
     vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5';
     document.head.appendChild(vp);
+
+    for (const href of ['https://ehgt.org']) {
+      for (const rel of ['preconnect', 'dns-prefetch']) {
+        const l = document.createElement('link');
+        l.rel = rel;
+        l.href = href;
+        document.head.appendChild(l);
+      }
+    }
 
     let tc = document.querySelector('meta[name="theme-color"]');
     if (!tc) {
@@ -2364,7 +2392,7 @@
   let preloadTimer = 0;
   function schedulePreload() {
     if (preloadTimer) return;
-    preloadTimer = setTimeout(() => { preloadTimer = 0; preloadFavorites(); }, 1500);
+    preloadTimer = setTimeout(() => { preloadTimer = 0; preloadFavorites(); }, 800);
   }
 
   function preloadFavorites() {
@@ -2403,8 +2431,9 @@
     return data && data.title ? data.title : 'Front Page';
   }
 
-  function galleryGridHtml(items) {
-    return items.map((g) => galleryCardHtml(g)).join('');
+  function galleryGridHtml(items, opts = {}) {
+    const eager = opts.eager || 0;
+    return items.map((g, i) => galleryCardHtml(g, { eager: i < eager })).join('');
   }
 
   function chipsHtml(route, url, data) {
@@ -2552,7 +2581,7 @@
     app.main.innerHTML = `
       ${chipsHtml(route, url, data)}
       <div class="${gridClass}" id="ehx-gallery-grid" style="${gridStyle}">
-        ${galleryGridHtml(items.slice(0, initialCount))}
+        ${galleryGridHtml(items.slice(0, initialCount), { eager: 6 })}
       </div>
       <div id="ehx-list-footer" class="ehx-loading" style="display:${hasMore ? 'grid' : 'none'}">
         <div class="ehx-spinner"></div>
@@ -2826,7 +2855,7 @@
           ${cover ? `<div class="ehx-dhero-bg" style="background-image:url('${esc(cover)}')"></div>` : ''}
           <div class="ehx-dhero-shade"></div>
           <div class="ehx-dhero-inner">
-            <div class="ehx-dcover">${cover ? `<img src="${esc(cover)}" alt="">` : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 30)}</div>`}</div>
+            <div class="ehx-dcover">${cover ? `<img src="${esc(cover)}" alt="" fetchpriority="high" decoding="async">` : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 30)}</div>`}</div>
             <div class="ehx-dhead">
               <div class="ehx-dtitle">${esc(data.title)}</div>
               ${data.jpTitle && data.jpTitle !== data.title ? `<div class="ehx-dsub">${esc(data.jpTitle)}</div>` : ''}
@@ -3344,6 +3373,7 @@
       img.alt = 'Page ' + idx;
       img.decoding = 'async';
       img.loading = 'eager';
+      img.setAttribute('fetchpriority', 'high');
       img.draggable = false;
       img.onload = () => {
         el.dataset.loaded = '1';

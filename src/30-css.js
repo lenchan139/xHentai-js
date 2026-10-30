@@ -21,6 +21,7 @@
     --accent2:#6750a4;
     --danger:#ff6f86;
     --ok:#71d69b;
+    --shimmer:#2a2433;
     --shadow:0 8px 26px rgba(0,0,0,.35);
     --sat:env(safe-area-inset-top,0px);
     --sab:env(safe-area-inset-bottom,0px);
@@ -42,6 +43,7 @@
     --accent2:#d0bcff;
     --danger:#c33a52;
     --ok:#25824d;
+    --shimmer:#e9e1f2;
     --shadow:0 8px 24px rgba(50,20,90,.12);
   }
   *,*::before,*::after{box-sizing:border-box}
@@ -164,7 +166,10 @@
     transition:transform .14s ease;
   }
   .ehx-card:active{transform:scale(.985)}
-  .ehx-cover{position:relative;aspect-ratio:3/4;background:var(--card2);overflow:hidden}
+  .ehx-cover{position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--card2)}
+  .ehx-cover.ehx-cover-loading{
+    background:linear-gradient(100deg,var(--card2) 20%,var(--shimmer) 40%,var(--card2) 60%);
+    background-size:200% 100%;animation:ehx-shimmer 1.6s linear infinite}
   .ehx-cover img{width:100%;height:100%;object-fit:cover;display:block;background:var(--card2)}
   .ehx-cover-fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted2);background:var(--card2)}
   .ehx-cover:after{content:"";position:absolute;inset:auto 0 0 0;height:42%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.52));pointer-events:none}

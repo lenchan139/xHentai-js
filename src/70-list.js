@@ -23,7 +23,7 @@
   let preloadTimer = 0;
   function schedulePreload() {
     if (preloadTimer) return;
-    preloadTimer = setTimeout(() => { preloadTimer = 0; preloadFavorites(); }, 1500);
+    preloadTimer = setTimeout(() => { preloadTimer = 0; preloadFavorites(); }, 800);
   }
 
   function preloadFavorites() {
@@ -62,8 +62,9 @@
     return data && data.title ? data.title : 'Front Page';
   }
 
-  function galleryGridHtml(items) {
-    return items.map((g) => galleryCardHtml(g)).join('');
+  function galleryGridHtml(items, opts = {}) {
+    const eager = opts.eager || 0;
+    return items.map((g, i) => galleryCardHtml(g, { eager: i < eager })).join('');
   }
 
   function chipsHtml(route, url, data) {
@@ -211,7 +212,7 @@
     app.main.innerHTML = `
       ${chipsHtml(route, url, data)}
       <div class="${gridClass}" id="ehx-gallery-grid" style="${gridStyle}">
-        ${galleryGridHtml(items.slice(0, initialCount))}
+        ${galleryGridHtml(items.slice(0, initialCount), { eager: 6 })}
       </div>
       <div id="ehx-list-footer" class="ehx-loading" style="display:${hasMore ? 'grid' : 'none'}">
         <div class="ehx-spinner"></div>
