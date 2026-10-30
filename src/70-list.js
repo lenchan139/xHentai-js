@@ -43,7 +43,9 @@
   function canonicalListUrl(url) {
     try {
       const u = new URL(url, location.href);
-      u.searchParams.set('inline_set', 'dm_e');
+      // Compact is the layout the parser and tests target, and unlike
+      // `dm_e` it does not rewrite the visitor's site display-mode cookie.
+      u.searchParams.set('inline_set', 'dm_l');
       return u.href;
     } catch {
       return url;
@@ -216,7 +218,7 @@
     app.main.innerHTML = `
       ${chipsHtml(route, url, data)}
       <div class="${gridClass}" id="ehx-gallery-grid" style="${gridStyle}">
-        ${galleryGridHtml(items.slice(0, initialCount), { eager: 6 })}
+        ${galleryGridHtml(items.slice(0, initialCount), { eager: 4 })}
       </div>
       <div id="ehx-list-footer" class="ehx-loading" style="display:${hasMore ? 'grid' : 'none'}">
         <div class="ehx-spinner"></div>
@@ -227,12 +229,14 @@
     const grid = $('#ehx-gallery-grid');
     const footer = $('#ehx-list-footer');
     const sentinel = $('#ehx-sentinel');
+    hydrateCovers(app.main);
 
     function renderMoreLocal() {
       if (!grid || state.rendered >= state.items.length) return false;
       const chunk = state.items.slice(state.rendered, state.rendered + 30);
       if (!chunk.length) return false;
       grid.insertAdjacentHTML('beforeend', galleryGridHtml(chunk));
+      hydrateCovers(grid);
       state.rendered += chunk.length;
       return true;
     }

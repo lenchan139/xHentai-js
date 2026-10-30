@@ -194,10 +194,13 @@
     const base = baseUrl || (doc.baseURI || location.href);
     const items = [];
     const seen = new Set();
-    const rows = Array.from(doc.querySelectorAll('table.itg tr'));
+    // E-Hentai has four list layouts: Compact (gl*c), Extended (gl*e),
+    // Thumbnail (gl*t, div-based) and Minimal (gl*m). Normalise both the
+    // table-based and div-based variants into the same row list.
+    const rows = Array.from(doc.querySelectorAll('table.itg tr, div.gl1t'));
     for (const tr of rows) {
       if (tr.querySelector('td.itd') || tr.querySelector('th')) continue;
-      const link = tr.querySelector('td.gl3c a[href*="/g/"], td.gl2c a[href*="/g/"], a[href*="/g/"]');
+      const link = tr.querySelector('.gl3c a[href*="/g/"], .gl2c a[href*="/g/"], .gl1e a[href*="/g/"], .gl4e a[href*="/g/"], .gl1t a[href*="/g/"], .gl2m a[href*="/g/"], a[href*="/g/"]');
       if (!link) continue;
       const href = absUrl(link.getAttribute('href'), base);
       const m = href.match(/\/g\/(\d+)\/([0-9a-f]+)/i);
@@ -208,22 +211,32 @@
       const title = text(titleEl) || text(link);
       if (!title) continue;
 
-      const catEl = tr.querySelector('.gl1c .cn') || tr.querySelector('.gl1c');
+      const catEl = tr.querySelector('.gl1c .cn, .gl3e .cn, .gl5t .cs, .gl1m .cs, .gl3c .cn, .gl1c, .cn, .cs');
       const catClass = (catEl && Array.from(catEl.classList).find((c) => /^ct[0-9a]$/.test(c))) || '';
       const category = text(catEl) || catFromClass(catClass) || 'Misc';
 
-      const img = tr.querySelector('.gl2c img[data-src], .gl2c img[src], img[data-src]');
+      const img = tr.querySelector(
+        '.gl2c img[data-src], .gl2c img[src], .gl1c img[data-src], .gl1c img[src], ' +
+        '.gl1e img[data-src], .gl1e img[src], .gl3t img[data-src], .gl3t img[src], ' +
+        '.gl2m img[data-src], .gl2m img[src], .glthumb img[data-src], .glthumb img[src], img[data-src]',
+      );
       let cover = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
       cover = safeImage(cover);
       if (/^data:/i.test(cover)) cover = '';
 
-      const uploaderEl = tr.querySelector('.gl4c a[href*="/uploader/"]');
+      const uploaderEl = tr.querySelector('.gl4c a[href*="/uploader/"], .gl4e a[href*="/uploader/"], a[href*="/uploader/"]');
       const uploader = text(uploaderEl);
 
-      const pagesEl = tr.querySelector('.gl4c div:last-child');
-      let pages = num(text(pagesEl));
+      // The page count lives in its own div in every layout. Scan for the
+      // exact label first: concatenated row text can glue "15:10" and
+      // "4 pages" into "15:104 pages" and invent a bogus count.
+      let pages = null;
+      for (const el of tr.querySelectorAll('div')) {
+        const pm = text(el).match(/^([\d,]+)\s+pages?$/i);
+        if (pm) { pages = num(pm[1]); break; }
+      }
       if (!pages) {
-        const pm = (tr.textContent || '').match(/([\d,]+)\s+pages?/i);
+        const pm = (tr.textContent || '').match(/(?:^|\s)([\d,]+)\s+pages?\b/i);
         pages = pm ? num(pm[1]) : null;
       }
 
@@ -232,7 +245,7 @@
 
       const tags = [];
       const tagSeen = new Set();
-      for (const el of tr.querySelectorAll('.gl3c .gt')) {
+      for (const el of tr.querySelectorAll('.gl3c .gt, .gl3e .gt, .gt')) {
         const full = (el.getAttribute('title') || text(el) || '').trim();
         if (!full || tagSeen.has(full)) continue;
         tagSeen.add(full);

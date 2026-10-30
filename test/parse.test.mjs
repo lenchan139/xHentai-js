@@ -48,6 +48,40 @@ console.log('\nparseList (front page)');
   ok('next link found', /next=/.test(r.next), r.next);
 }
 
+console.log('\nparseList (extended layout)');
+{
+  const doc = load('index-extended.html');
+  const r = P.parseList(doc, 'https://e-hentai.org/');
+  ok('finds 25 galleries', r.items.length === 25, 'got ' + r.items.length);
+  ok('all covers found', r.items.every((g) => /^https?:/.test(g.cover)), 'covers ' + r.items.filter((g) => g.cover).length);
+  ok('cover is the 250px /w/ image', /ehgt\.org\/w\//.test(r.items[0].cover), r.items[0].cover);
+  ok('category parsed', r.items[0].category === 'Western', r.items[0].category);
+  ok('tags parsed', r.items[0].tags.length > 0, String(r.items[0].tags.length));
+  ok('pages = 4', r.items[0].pages === 4, String(r.items[0].pages));
+  ok('uploader parsed', r.items[0].uploader === 'akihabaranokita', r.items[0].uploader);
+  ok('next link found', /next=/.test(r.next), r.next);
+}
+
+console.log('\nparseList (thumbnail layout, div-based)');
+{
+  const doc = load('index-thumbnail.html');
+  const r = P.parseList(doc, 'https://e-hentai.org/');
+  ok('finds 25 galleries', r.items.length === 25, 'got ' + r.items.length);
+  ok('all covers found', r.items.every((g) => /^https?:/.test(g.cover)));
+  ok('category parsed', r.items[0].category === 'Western', r.items[0].category);
+  ok('pages = 4', r.items[0].pages === 4, String(r.items[0].pages));
+}
+
+console.log('\nparseList (minimal layout)');
+{
+  const doc = load('index-minimal.html');
+  const r = P.parseList(doc, 'https://e-hentai.org/');
+  ok('finds 25 galleries', r.items.length === 25, 'got ' + r.items.length);
+  ok('all covers found', r.items.every((g) => /^https?:/.test(g.cover)));
+  ok('pages = 4, not a glued timestamp', r.items[0].pages === 4, String(r.items[0].pages));
+  ok('uploader parsed', r.items[0].uploader === 'akihabaranokita', r.items[0].uploader);
+}
+
 console.log('\nparseList (search)');
 {
   const doc = load('search.html');

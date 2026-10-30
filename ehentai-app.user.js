@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.4
+// @version      1.0.5
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.4';
+  const VERSION = '1.0.5';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1132,10 +1132,13 @@
     const base = baseUrl || (doc.baseURI || location.href);
     const items = [];
     const seen = new Set();
-    const rows = Array.from(doc.querySelectorAll('table.itg tr'));
+    // E-Hentai has four list layouts: Compact (gl*c), Extended (gl*e),
+    // Thumbnail (gl*t, div-based) and Minimal (gl*m). Normalise both the
+    // table-based and div-based variants into the same row list.
+    const rows = Array.from(doc.querySelectorAll('table.itg tr, div.gl1t'));
     for (const tr of rows) {
       if (tr.querySelector('td.itd') || tr.querySelector('th')) continue;
-      const link = tr.querySelector('td.gl3c a[href*="/g/"], td.gl2c a[href*="/g/"], a[href*="/g/"]');
+      const link = tr.querySelector('.gl3c a[href*="/g/"], .gl2c a[href*="/g/"], .gl1e a[href*="/g/"], .gl4e a[href*="/g/"], .gl1t a[href*="/g/"], .gl2m a[href*="/g/"], a[href*="/g/"]');
       if (!link) continue;
       const href = absUrl(link.getAttribute('href'), base);
       const m = href.match(/\/g\/(\d+)\/([0-9a-f]+)/i);
@@ -1146,22 +1149,32 @@
       const title = text(titleEl) || text(link);
       if (!title) continue;
 
-      const catEl = tr.querySelector('.gl1c .cn') || tr.querySelector('.gl1c');
+      const catEl = tr.querySelector('.gl1c .cn, .gl3e .cn, .gl5t .cs, .gl1m .cs, .gl3c .cn, .gl1c, .cn, .cs');
       const catClass = (catEl && Array.from(catEl.classList).find((c) => /^ct[0-9a]$/.test(c))) || '';
       const category = text(catEl) || catFromClass(catClass) || 'Misc';
 
-      const img = tr.querySelector('.gl2c img[data-src], .gl2c img[src], img[data-src]');
+      const img = tr.querySelector(
+        '.gl2c img[data-src], .gl2c img[src], .gl1c img[data-src], .gl1c img[src], ' +
+        '.gl1e img[data-src], .gl1e img[src], .gl3t img[data-src], .gl3t img[src], ' +
+        '.gl2m img[data-src], .gl2m img[src], .glthumb img[data-src], .glthumb img[src], img[data-src]',
+      );
       let cover = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
       cover = safeImage(cover);
       if (/^data:/i.test(cover)) cover = '';
 
-      const uploaderEl = tr.querySelector('.gl4c a[href*="/uploader/"]');
+      const uploaderEl = tr.querySelector('.gl4c a[href*="/uploader/"], .gl4e a[href*="/uploader/"], a[href*="/uploader/"]');
       const uploader = text(uploaderEl);
 
-      const pagesEl = tr.querySelector('.gl4c div:last-child');
-      let pages = num(text(pagesEl));
+      // The page count lives in its own div in every layout. Scan for the
+      // exact label first: concatenated row text can glue "15:10" and
+      // "4 pages" into "15:104 pages" and invent a bogus count.
+      let pages = null;
+      for (const el of tr.querySelectorAll('div')) {
+        const pm = text(el).match(/^([\d,]+)\s+pages?$/i);
+        if (pm) { pages = num(pm[1]); break; }
+      }
       if (!pages) {
-        const pm = (tr.textContent || '').match(/([\d,]+)\s+pages?/i);
+        const pm = (tr.textContent || '').match(/(?:^|\s)([\d,]+)\s+pages?\b/i);
         pages = pm ? num(pm[1]) : null;
       }
 
@@ -1170,7 +1183,7 @@
 
       const tags = [];
       const tagSeen = new Set();
-      for (const el of tr.querySelectorAll('.gl3c .gt')) {
+      for (const el of tr.querySelectorAll('.gl3c .gt, .gl3e .gt, .gt')) {
         const full = (el.getAttribute('title') || text(el) || '').trim();
         if (!full || tagSeen.has(full)) continue;
         tagSeen.add(full);
@@ -2100,6 +2113,39 @@
     return '/tag/' + encodeURIComponent(full).replace(/%20/g, '+').replace(/%3A/gi, ':');
   }
 
+  // Covers are only ~250px wide, but the image hosts often take 2-4s per
+  // request and throttle concurrent connections. Loading every cover at once
+  // made the last row wait ~20s, so only cards near the viewport get a real
+  // src; the rest are hydrated by an IntersectionObserver as you scroll.
+  const COVER_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  let coverObserver = null;
+
+  function hydrateCovers(root) {
+    if (!root) return;
+    const imgs = Array.from(root.querySelectorAll('img[data-cover]'));
+    if (!imgs.length) return;
+    if (!('IntersectionObserver' in window)) {
+      for (const img of imgs) {
+        img.src = img.getAttribute('data-cover');
+        img.removeAttribute('data-cover');
+      }
+      return;
+    }
+    if (!coverObserver) {
+      coverObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const img = entry.target;
+          coverObserver.unobserve(img);
+          const src = img.getAttribute('data-cover');
+          img.removeAttribute('data-cover');
+          if (src) img.src = src;
+        }
+      }, { rootMargin: '250px 0px' });
+    }
+    for (const img of imgs) coverObserver.observe(img);
+  }
+
   function galleryCardHtml(g, opts = {}) {
     const prog = progressStore.get(g.gid);
     const cat = g.category || 'Misc';
@@ -2110,10 +2156,10 @@
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
     const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
     const imgAttrs = opts.eager
-      ? 'loading="eager" fetchpriority="high" decoding="async"'
-      : 'loading="lazy" decoding="async"';
+      ? `loading="eager" fetchpriority="high" decoding="async" src="${esc(g.cover)}"`
+      : `loading="lazy" fetchpriority="low" decoding="async" data-cover="${esc(g.cover)}" src="${COVER_PLACEHOLDER}"`;
     const cover = g.cover
-      ? `<img ${imgAttrs} src="${esc(g.cover)}" alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
+      ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
       ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag" style="--tagc:${tagColor(t.ns)}">${esc(t.name)}</span>`).join('')}</div>`
@@ -2417,7 +2463,9 @@
   function canonicalListUrl(url) {
     try {
       const u = new URL(url, location.href);
-      u.searchParams.set('inline_set', 'dm_e');
+      // Compact is the layout the parser and tests target, and unlike
+      // `dm_e` it does not rewrite the visitor's site display-mode cookie.
+      u.searchParams.set('inline_set', 'dm_l');
       return u.href;
     } catch {
       return url;
@@ -2590,7 +2638,7 @@
     app.main.innerHTML = `
       ${chipsHtml(route, url, data)}
       <div class="${gridClass}" id="ehx-gallery-grid" style="${gridStyle}">
-        ${galleryGridHtml(items.slice(0, initialCount), { eager: 6 })}
+        ${galleryGridHtml(items.slice(0, initialCount), { eager: 4 })}
       </div>
       <div id="ehx-list-footer" class="ehx-loading" style="display:${hasMore ? 'grid' : 'none'}">
         <div class="ehx-spinner"></div>
@@ -2601,12 +2649,14 @@
     const grid = $('#ehx-gallery-grid');
     const footer = $('#ehx-list-footer');
     const sentinel = $('#ehx-sentinel');
+    hydrateCovers(app.main);
 
     function renderMoreLocal() {
       if (!grid || state.rendered >= state.items.length) return false;
       const chunk = state.items.slice(state.rendered, state.rendered + 30);
       if (!chunk.length) return false;
       grid.insertAdjacentHTML('beforeend', galleryGridHtml(chunk));
+      hydrateCovers(grid);
       state.rendered += chunk.length;
       return true;
     }

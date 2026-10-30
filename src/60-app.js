@@ -567,6 +567,39 @@
     return '/tag/' + encodeURIComponent(full).replace(/%20/g, '+').replace(/%3A/gi, ':');
   }
 
+  // Covers are only ~250px wide, but the image hosts often take 2-4s per
+  // request and throttle concurrent connections. Loading every cover at once
+  // made the last row wait ~20s, so only cards near the viewport get a real
+  // src; the rest are hydrated by an IntersectionObserver as you scroll.
+  const COVER_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  let coverObserver = null;
+
+  function hydrateCovers(root) {
+    if (!root) return;
+    const imgs = Array.from(root.querySelectorAll('img[data-cover]'));
+    if (!imgs.length) return;
+    if (!('IntersectionObserver' in window)) {
+      for (const img of imgs) {
+        img.src = img.getAttribute('data-cover');
+        img.removeAttribute('data-cover');
+      }
+      return;
+    }
+    if (!coverObserver) {
+      coverObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const img = entry.target;
+          coverObserver.unobserve(img);
+          const src = img.getAttribute('data-cover');
+          img.removeAttribute('data-cover');
+          if (src) img.src = src;
+        }
+      }, { rootMargin: '250px 0px' });
+    }
+    for (const img of imgs) coverObserver.observe(img);
+  }
+
   function galleryCardHtml(g, opts = {}) {
     const prog = progressStore.get(g.gid);
     const cat = g.category || 'Misc';
@@ -577,10 +610,10 @@
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
     const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
     const imgAttrs = opts.eager
-      ? 'loading="eager" fetchpriority="high" decoding="async"'
-      : 'loading="lazy" decoding="async"';
+      ? `loading="eager" fetchpriority="high" decoding="async" src="${esc(g.cover)}"`
+      : `loading="lazy" fetchpriority="low" decoding="async" data-cover="${esc(g.cover)}" src="${COVER_PLACEHOLDER}"`;
     const cover = g.cover
-      ? `<img ${imgAttrs} src="${esc(g.cover)}" alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
+      ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
       ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag" style="--tagc:${tagColor(t.ns)}">${esc(t.name)}</span>`).join('')}</div>`

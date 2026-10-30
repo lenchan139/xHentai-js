@@ -138,6 +138,16 @@ try {
   ok('category chips', await count('.ehx-chips .ehx-chip') > 10);
   ok('first card title', (await txt('.ehx-card-title')).length > 3);
 
+  console.log('\nCovers');
+  const covers = await page.$$eval('.ehx-card img', (imgs) => imgs.map((i) => ({
+    src: i.getAttribute('src') || '',
+    data: i.getAttribute('data-cover') || '',
+  })));
+  ok('first 4 covers load eagerly', covers.slice(0, 4).every((c) => /^https?:\/\//.test(c.src) && !/^data:/.test(c.src)));
+  ok('every card has a cover URL', covers.every((c) => /\/w\//.test(c.src) || /\/w\//.test(c.data)));
+  ok('covers use the 250px /w/ list image', covers.every((c) => !c.data || /\/w\//.test(c.data)));
+  ok('off-screen covers are deferred', covers.slice(12).some((c) => !!c.data));
+
   console.log('\nDetail');
   await page.click('.ehx-card');
   await page.waitForFunction(() => location.pathname.startsWith('/g/'), { timeout: 6000 });
