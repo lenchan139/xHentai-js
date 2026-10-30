@@ -248,6 +248,13 @@ site. Favorites and ratings are the two account actions implemented in-app.
 - Tap **Retry** in the page placeholder; the app re-fetches the image page and gets a
   fresh signed URL. If it still fails, use **Original** for that page.
 
+**ExHentai itself is slow to respond**
+- ExHentai's HTML server often takes several seconds before sending a page, while
+  the connection and static files are fast. This is server-side: the page is
+  generated per request and is not cached by Cloudflare. The app caches pages for a
+  few minutes and warms Favorites, but the first load still waits on ExHentai.
+  If the page is blank rather than slow, see the `yay` note above.
+
 **Favorites feels slow**
 - The app warms Favorites shortly after launch and keeps a five-minute cache. The
   first load still depends on E-Hentai's own favorites query. If a Cloudflare check
