@@ -10,8 +10,8 @@ build step required at install time.
 > requests go to the real site with your own session. It does not bypass age gates,
 > GP costs, or site rules.
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fmain%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fmain%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -87,11 +87,20 @@ build step required at install time.
 
 ## Download
 
-**Raw userscript (the URL the script auto-updates from):**
+**Direct install snapshot — v1.0.3 (cache-free):**
+
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js>
+
+**Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Open ehentai-app.user.js raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+> GitHub's raw CDN caches `main` for a few minutes after a push. The versioned
+> snapshot above installs v1.0.3 immediately; its header still points at `main` for
+> future automatic updates.
+
+- [Install v1.0.3](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
+- [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
 
@@ -108,7 +117,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. In Safari you can also use the **AA** menu →
    **Manage Extensions**.
-3. Open the [raw download link](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+3. Open the [v1.0.3 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
    in Safari. Tampermonkey should offer to install it. If Safari displays the script
    as text instead, open the Tampermonkey app, tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/` if you use it).
@@ -119,7 +128,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on
    both sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [raw userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
+   On My iPhone), then save the [v1.0.3 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -146,8 +155,8 @@ The header contains:
 
 **Tampermonkey** checks that URL periodically and installs a newer `@version`
 automatically. To force a check: Tampermonkey → **Utilities → Check for userscript
-updates**. The script is installed from the raw `main` link above, so it stays on the
-main-branch build.
+updates**. The header of the versioned install snapshot still points at `main`, so it
+stays on the main-branch build after the first install.
 
 Every push to `main` that touches `src/` runs
 [`.github/workflows/build.yml`](.github/workflows/build.yml): it runs `npm ci`,
@@ -160,11 +169,16 @@ To publish a newer version:
 npm run release   # bumps the patch version in package.json and rebuilds
 git add package.json package-lock.json ehentai-app.user.js
 git commit -m "release: vX.Y.Z"
-git push
+git tag vX.Y.Z
+git push && git push origin vX.Y.Z
 ```
 
 `build.sh` injects the `package.json` version into both `@version` and the in-app
 `VERSION` constant.
+
+After pushing a release, update the versioned snapshot links in this README (the
+`vX.Y.Z` URLs) if you want a cache-free install link for the new version; `main`
+remains the auto-update source either way.
 
 > **Userscripts (Safari iOS)** does not guarantee background update checks. Re-open
 > the raw link or use the app's update/reload action. Tampermonkey is the
