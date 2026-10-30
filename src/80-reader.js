@@ -260,6 +260,7 @@
         el.dataset.loading = '';
         failSlot(r, el, idx);
       };
+      try { preconnectOrigin(new URL(rec.src).origin); } catch { /* noop */ }
       img.src = rec.src;
       el.replaceChildren(img);
       if (!r.cover) r.cover = rec.src;
@@ -489,6 +490,7 @@
       return;
     }
 
+    try { preconnectOrigin(new URL(first.src).origin); } catch { /* noop */ }
     const galleryMatch = (first.galleryUrl || '').match(/\/g\/(\d+)\/([0-9a-f]+)/i);
     const gid = route.gid || (galleryMatch ? galleryMatch[1] : '');
     const token = galleryMatch ? galleryMatch[2] : '';

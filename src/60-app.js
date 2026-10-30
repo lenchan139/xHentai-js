@@ -27,6 +27,18 @@
     reader: null,
   };
 
+  const preconnectedOrigins = new Set();
+  function preconnectOrigin(origin) {
+    if (!origin || preconnectedOrigins.has(origin)) return;
+    preconnectedOrigins.add(origin);
+    for (const rel of ['preconnect', 'dns-prefetch']) {
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = origin;
+      (document.head || document.documentElement).appendChild(link);
+    }
+  }
+
   const appActions = {};
   function onAction(name, fn) { appActions[name] = fn; }
   function runAction(name, el) {
@@ -777,14 +789,7 @@
     vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5';
     document.head.appendChild(vp);
 
-    for (const href of ['https://ehgt.org']) {
-      for (const rel of ['preconnect', 'dns-prefetch']) {
-        const l = document.createElement('link');
-        l.rel = rel;
-        l.href = href;
-        document.head.appendChild(l);
-      }
-    }
+    for (const href of ['https://ehgt.org', 'https://s.exhentai.org']) preconnectOrigin(href);
 
     let tc = document.querySelector('meta[name="theme-color"]');
     if (!tc) {

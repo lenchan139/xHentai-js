@@ -187,6 +187,10 @@
     if (isFav && !fromCache) favoritesCache.set(favUrl, { at: Date.now(), data });
 
     const items = data.items || [];
+    for (const g of items.slice(0, 16)) {
+      if (!g.cover) continue;
+      try { preconnectOrigin(new URL(g.cover).origin); } catch { /* noop */ }
+    }
     const rememberedCount = (memorized && memorized.rendered) || 0;
     const initialCount = Math.min(items.length, Math.max(rememberedCount, Math.min(30, items.length)));
     const state = {

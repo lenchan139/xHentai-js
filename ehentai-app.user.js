@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.3
+// @version      1.0.4
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.3';
+  const VERSION = '1.0.4';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1560,6 +1560,18 @@
     reader: null,
   };
 
+  const preconnectedOrigins = new Set();
+  function preconnectOrigin(origin) {
+    if (!origin || preconnectedOrigins.has(origin)) return;
+    preconnectedOrigins.add(origin);
+    for (const rel of ['preconnect', 'dns-prefetch']) {
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = origin;
+      (document.head || document.documentElement).appendChild(link);
+    }
+  }
+
   const appActions = {};
   function onAction(name, fn) { appActions[name] = fn; }
   function runAction(name, el) {
@@ -2310,14 +2322,7 @@
     vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5';
     document.head.appendChild(vp);
 
-    for (const href of ['https://ehgt.org']) {
-      for (const rel of ['preconnect', 'dns-prefetch']) {
-        const l = document.createElement('link');
-        l.rel = rel;
-        l.href = href;
-        document.head.appendChild(l);
-      }
-    }
+    for (const href of ['https://ehgt.org', 'https://s.exhentai.org']) preconnectOrigin(href);
 
     let tc = document.querySelector('meta[name="theme-color"]');
     if (!tc) {
@@ -2556,6 +2561,10 @@
     if (isFav && !fromCache) favoritesCache.set(favUrl, { at: Date.now(), data });
 
     const items = data.items || [];
+    for (const g of items.slice(0, 16)) {
+      if (!g.cover) continue;
+      try { preconnectOrigin(new URL(g.cover).origin); } catch { /* noop */ }
+    }
     const rememberedCount = (memorized && memorized.rendered) || 0;
     const initialCount = Math.min(items.length, Math.max(rememberedCount, Math.min(30, items.length)));
     const state = {
@@ -2833,6 +2842,12 @@
     if (typeof data.apiuid === 'number' && data.apiuid > 0) { app.loggedIn = true; renderDrawer(); }
 
     const cover = data.cover || '';
+    if (cover) { try { preconnectOrigin(new URL(cover).origin); } catch { /* noop */ } }
+    for (const t of (data.thumbs || []).slice(0, 3)) {
+      const u = t.sprite || t.img;
+      if (!u) continue;
+      try { preconnectOrigin(new URL(u).origin); } catch { /* noop */ }
+    }
     const progress = progressStore.get(gid);
     const catPath = CATEGORY_TO_PATH[data.category] || '/';
     const title = data.title;
@@ -3386,6 +3401,7 @@
         el.dataset.loading = '';
         failSlot(r, el, idx);
       };
+      try { preconnectOrigin(new URL(rec.src).origin); } catch { /* noop */ }
       img.src = rec.src;
       el.replaceChildren(img);
       if (!r.cover) r.cover = rec.src;
@@ -3615,6 +3631,7 @@
       return;
     }
 
+    try { preconnectOrigin(new URL(first.src).origin); } catch { /* noop */ }
     const galleryMatch = (first.galleryUrl || '').match(/\/g\/(\d+)\/([0-9a-f]+)/i);
     const gid = route.gid || (galleryMatch ? galleryMatch[1] : '');
     const token = galleryMatch ? galleryMatch[2] : '';

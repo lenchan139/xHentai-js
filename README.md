@@ -10,8 +10,8 @@ build step required at install time.
 > requests go to the real site with your own session. It does not bypass age gates,
 > GP costs, or site rules.
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.3%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.4/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.4%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.4/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -87,19 +87,19 @@ build step required at install time.
 
 ## Download
 
-**Direct install snapshot — v1.0.3 (cache-free):**
+**Direct install snapshot — v1.0.4 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.4/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
 > GitHub's raw CDN caches `main` for a few minutes after a push. The versioned
-> snapshot above installs v1.0.3 immediately; its header still points at `main` for
+> snapshot above installs v1.0.4 immediately; its header still points at `main` for
 > future automatic updates.
 
-- [Install v1.0.3](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
+- [Install v1.0.4](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.4/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -117,7 +117,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. In Safari you can also use the **AA** menu →
    **Manage Extensions**.
-3. Open the [v1.0.3 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
+3. Open the [v1.0.4 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.4/ehentai-app.user.js)
    in Safari. Tampermonkey should offer to install it. If Safari displays the script
    as text instead, open the Tampermonkey app, tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/` if you use it).
@@ -128,7 +128,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on
    both sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.0.3 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.3/ehentai-app.user.js)
+   On My iPhone), then save the [v1.0.4 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.4/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -323,9 +323,14 @@ small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode
 **"This page requires you to log on"**
 - Use the drawer → Log in. On iPhone, cookie login is the most reliable.
 
-**Sad panda on ExHentai**
+**Sad panda / white screen on ExHentai**
 - Set the three cookies for `exhentai.org` (see above), or log in on E-Hentai first
   and then reload ExHentai.
+- Remove the stale `yay` cookie and ExHentai site data: **Safari → Settings → Privacy
+  → Manage Website Data → `exhentai.org` → Remove**, then open
+  `https://e-hentai.org/home.php`, log in, and open ExHentai.
+- The authenticating cookies are `igneous`, `ipb_member_id`, and `ipb_pass_hash`;
+  `yay` alone is not enough. The app's Cookie login on ExHentai sets that trio.
 
 **"E-Hentai is rate-limiting requests" (HTTP 509)**
 - Wait a minute; lower **Preload pages** in Settings; avoid opening many galleries
@@ -346,10 +351,15 @@ small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode
   (35 seconds on E-Hentai). If it still times out, the ExHentai HTML server is not
   responding; the reader images are on a different host and may still work. Retry or
   use the original page.
-- **Covers are slow but the reader is fast**: gallery covers come from `ehgt.org`
-  while reader images come from `hath.network`. The app now preconnects to `ehgt.org`,
-  marks the first six covers as high-priority, and shows a shimmer placeholder while
-  they load. A slow `ehgt.org` route (DNS/VPN/ISP) still limits the covers.
+- **Covers are slow but the reader is fast**: E-Hentai gallery covers come from
+  `ehgt.org`; ExHentai covers come from `s.exhentai.org`; reader images come from
+  `hath.network`. v1.0.4 preconnects to the actual cover and reader origins and marks
+  the first six covers high-priority. A slow cover-host route (DNS/VPN/ISP) or an
+  AdGuard/uBlock rule on `ehgt.org` / `s.exhentai.org` still limits covers.
+- **ExHentai favorites HTML is slow**: the real `favorites.php` response was measured
+  at ~11 seconds on ExHentai's server (DOMContentLoaded ~9s, 22 KB transfer). The app
+  warms Favorites after launch and keeps a five-minute cache; the first load is
+  server-bound and the covers start only after that HTML arrives.
 
 **Favorites form does not open**
 - The site's favorites popup requires a valid session. Log in; if the popup layout

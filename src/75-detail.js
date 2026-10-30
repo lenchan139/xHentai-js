@@ -178,6 +178,12 @@
     if (typeof data.apiuid === 'number' && data.apiuid > 0) { app.loggedIn = true; renderDrawer(); }
 
     const cover = data.cover || '';
+    if (cover) { try { preconnectOrigin(new URL(cover).origin); } catch { /* noop */ } }
+    for (const t of (data.thumbs || []).slice(0, 3)) {
+      const u = t.sprite || t.img;
+      if (!u) continue;
+      try { preconnectOrigin(new URL(u).origin); } catch { /* noop */ }
+    }
     const progress = progressStore.get(gid);
     const catPath = CATEGORY_TO_PATH[data.category] || '/';
     const title = data.title;
