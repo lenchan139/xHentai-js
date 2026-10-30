@@ -10,8 +10,8 @@ build step required at install time.
 > requests go to the real site with your own session. It does not bypass age gates,
 > GP costs, or site rules.
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.7/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.7%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.7/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.8%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -87,19 +87,19 @@ build step required at install time.
 
 ## Download
 
-**Direct install snapshot — v1.0.7 (cache-free):**
+**Direct install snapshot — v1.0.8 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.7/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
 > GitHub's raw CDN caches `main` for a few minutes after a push. The versioned
-> snapshot above installs v1.0.7 immediately; its header still points at `main` for
+> snapshot above installs v1.0.8 immediately; its header still points at `main` for
 > future automatic updates.
 
-- [Install v1.0.7](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.7/ehentai-app.user.js)
+- [Install v1.0.8](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -117,7 +117,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. In Safari you can also use the **AA** menu →
    **Manage Extensions**.
-3. Open the [v1.0.7 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.7/ehentai-app.user.js)
+3. Open the [v1.0.8 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
    in Safari. Tampermonkey should offer to install it. If Safari displays the script
    as text instead, open the Tampermonkey app, tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/` if you use it).
@@ -128,7 +128,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on
    both sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.0.7 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.7/ehentai-app.user.js)
+   On My iPhone), then save the [v1.0.8 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.8/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -355,7 +355,7 @@ small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode
   cover as the site's own list page (about 20–35 KB); the detail page uses that exact
   same URL, not a larger body image. The cover hosts (`ehgt.org`, `s.exhentai.org`)
   often take 2–4 seconds per request and throttle parallel connections, so loading
-  all 25 at once pushed the last cover past 20 seconds in testing. v1.0.7 preconnects
+  all 25 at once pushed the last cover past 20 seconds in testing. v1.0.8 preconnects
   to the real cover/reader origins, loads only cards near the viewport (first 4 are
   high-priority), and parses every E-Hentai list layout. A slow cover-host route
   (DNS/VPN/ISP) or an AdGuard/uBlock rule on those hosts can still add delay.
@@ -373,9 +373,9 @@ small CSS-variable theme (`#d0bcff` accent on `#0f0d13`, `#6750a4` in light mode
   files can be several MB, and if one fails to load the reader falls back to the
   resampled image for that page only. Slowness with resampled images is the
   `hath.network` host or your route.
-- **Covers missing after the first screen (fixed in v1.0.7)**: the app forced
+- **Covers missing after the first screen (fixed in v1.0.8)**: the app forced
   `?inline_set=dm_e` (Extended layout) but the parser only understood Compact
-  markup, so fetched lists had no cover URLs. v1.0.7 parses Compact, Extended,
+  markup, so fetched lists had no cover URLs. v1.0.8 parses Compact, Extended,
   Thumbnail and Minimal layouts and requests Compact (`dm_l`), which does not
   rewrite the site's display-mode cookie.
 - **ExHentai favorites HTML is slow**: the real `favorites.php` response was measured
@@ -425,16 +425,16 @@ src/99-boot.js            bootstrap and teardown
 ```bash
 npm install          # linkedom + puppeteer-core (dev only)
 npm run build        # writes ehentai-app.user.js
-npm test             # 60 parser assertions against real HTML snapshots
-npm run test:ui      # 56 headless-Chrome UI assertions
+npm test             # 67 parser assertions against real HTML snapshots
+npm run test:ui      # 58 headless-Chrome UI assertions
 npm run shots        # regenerates shots/*.png (placeholder art)
 npm run test:live    # optional: real-site smoke test (hits e-hentai.org)
 npm run release      # bump patch version + rebuild for a new userscript release
 ```
 
 - `test/fixtures/` contains saved current E-Hentai pages used by the parser and UI
-  tests (front page, search, tag, all four list layouts, detail, a 1,614-page
-  gallery page 2, reader,
+  tests (front page, search, tag, all four list layouts, E-Hentai and wrapped
+  ExHentai detail pages, a 1,614-page gallery page 2, reader,
   toplist, favorites login bounce). They are test data only.
 - The UI test starts a local server, rewrites `e-hentai.org` links to localhost, and
   injects the userscript with Puppeteer. It requires Google Chrome at the standard

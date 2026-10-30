@@ -28,6 +28,7 @@ const FILE_MAP = {
   '/misc': 'index.html',
   '/g/4291744/019be8a2c7/': 'detail.html',
   '/g/4291745/d068af7fe3/': 'detail_p1.html',
+  '/g/1922802/711f9187e5/': 'detail-ex.html',
   '/gallerypopups.php': 'favpopup_loggedin.html',
 };
 
@@ -347,6 +348,17 @@ try {
   ok('favorites tab used warm cache', after.favRequests === before.favRequests, JSON.stringify(after));
   ok('favorites rendered quickly', elapsed < 1200, elapsed + 'ms');
   ok('favorites has 25 cards', await count('.ehx-card') === 25, String(await count('.ehx-card')));
+
+  console.log('\nExHentai wrapped page previews');
+  await page.goto(BASE + '/g/1922802/711f9187e5/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.ehx-thumb', { timeout: 8000 });
+  const exThumbs = await page.$$eval('.ehx-thumb', (els) => els.map((el) => {
+    const sprite = el.querySelector('[data-sprite]');
+    const img = el.querySelector('img');
+    return { sprite: sprite ? sprite.getAttribute('data-sprite') || '' : '', img: img ? img.getAttribute('src') || '' : '' };
+  }));
+  ok('exhentai preview grid has 20 cells', exThumbs.length === 20, String(exThumbs.length));
+  ok('every exhentai cell has art', exThumbs.every((t) => /hath\.network/.test(t.sprite) || /^https?:/.test(t.img)), JSON.stringify(exThumbs.slice(0, 2)));
 
   console.log('\nConsole/page errors');
   ok('no uncaught errors', errors.length === 0, errors.slice(0, 5).join(' | '));

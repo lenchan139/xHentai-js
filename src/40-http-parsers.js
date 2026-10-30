@@ -385,7 +385,7 @@
       const im = href.match(/-(\d+)(?:\/)?$/);
       const idx = im ? parseInt(im[1], 10) : null;
       if (!idx) continue;
-      const div = a.querySelector('div');
+      const div = a.querySelector('div[style*="url("]') || a.querySelector('div[style]') || a.querySelector('div');
       const img = a.querySelector('img');
       if (img) {
         const src = img.getAttribute('src') || img.getAttribute('data-src') || '';

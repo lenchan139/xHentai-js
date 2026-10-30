@@ -121,6 +121,20 @@ console.log('\nparseDetail');
   ok('gid/token', d.gid === '4291744' && d.token === '019be8a2c7', d.gid + '/' + d.token);
 }
 
+console.log('\nparseDetail (ExHentai wrapped preview)');
+{
+  const base = 'https://exhentai.org/g/1922802/711f9187e5/';
+  const doc = load('detail-ex.html');
+  const d = P.parseDetail(doc, base);
+  ok('title', d.title.includes('Abandon'), d.title);
+  ok('cover from s.exhentai.org', /s\.exhentai\.org\/w\//.test(d.cover), d.cover);
+  ok('thumbs = 20', d.thumbs.length === 20, String(d.thumbs.length));
+  ok('every thumb has a sprite', d.thumbs.every((t) => /hath\.network\/.*\.webp/.test(t.sprite)), JSON.stringify(d.thumbs[0]));
+  ok('sprite offsets parsed', d.thumbs[1].offX === -200 && d.thumbs[1].offY === 0, JSON.stringify({ x: d.thumbs[1].offX, y: d.thumbs[1].offY }));
+  ok('thumb width 200', d.thumbs[0].w === 200, String(d.thumbs[0].w));
+  ok('pages = 229', d.pages === 229, String(d.pages));
+}
+
 console.log('\nparseDetail (page 2 of a big gallery)');
 {
   const base = 'https://e-hentai.org/g/4291745/d068af7fe3/?p=1';
