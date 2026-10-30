@@ -172,6 +172,7 @@
     if (!r) return;
     const mode = settings.readerMode === 'paged' ? 'paged' : 'vertical';
     const fit = settings.readerFit === 'contain' ? 'contain' : 'width';
+    const res = settings.readerResolution === 'original' ? 'original' : 'auto';
     const recNow = r.pages.get(r.index);
     const s = openSheet({
       title: 'Reader',
@@ -188,11 +189,18 @@
             <button data-fit="contain" class="${fit === 'contain' ? 'ehx-active' : ''}">Contain</button>
           </div>
         </div>
+        <div class="ehx-field"><label class="ehx-label">Image resolution</label>
+          <div class="ehx-seg" id="ehx-reader-res">
+            <button data-res="auto" class="${res === 'auto' ? 'ehx-active' : ''}">Resampled</button>
+            <button data-res="original" class="${res === 'original' ? 'ehx-active' : ''}">Original</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted2);margin:6px 0 0">${res === 'original' ? 'Original files can be several MB and load slowly.' : 'Server-resized WebP — fastest and usually 1280px.'}</p>
+        </div>
         <div class="ehx-group">
           <button class="ehx-drawer-item" data-rm="jump">${icon('jump', 20)}<span>Jump to page</span><span style="margin-left:auto;color:var(--muted2);font-size:12px">${r.index} / ${r.total}</span></button>
           <button class="ehx-drawer-item" data-rm="reload">${icon('refresh', 20)}<span>Reload this image</span></button>
           <button class="ehx-drawer-item" data-rm="image">${icon('external', 20)}<span>Open image in new tab</span></button>
-          ${recNow && recNow.fullUrl ? `<button class="ehx-drawer-item" data-rm="full">${icon('image', 20)}<span>Original resolution</span></button>` : ''}
+          ${recNow && recNow.fullUrl ? `<button class="ehx-drawer-item" data-rm="full">${icon('image', 20)}<span>Open original in new tab</span></button>` : ''}
           <button class="ehx-drawer-item" data-rm="gallery">${icon('book', 20)}<span>Gallery detail</span></button>
           <button class="ehx-drawer-item" data-rm="original">${icon('external', 20)}<span>Open original page</span></button>
           <button class="ehx-drawer-item" data-rm="share">${icon('share', 20)}<span>Share</span></button>
@@ -213,6 +221,15 @@
         r.fit = fitBtn.dataset.fit;
         r.root.classList.toggle('ehx-fit-contain', r.fit === 'contain');
         s.close();
+        return;
+      }
+      const resBtn = e.target.closest('[data-res]');
+      if (resBtn) {
+        saveSettings({ readerResolution: resBtn.dataset.res });
+        s.close();
+        r.pages.clear();
+        renderReaderLayout(r);
+        toast(resBtn.dataset.res === 'original' ? 'Loading original images' : 'Using resampled images');
         return;
       }
       const b = e.target.closest('[data-rm]');

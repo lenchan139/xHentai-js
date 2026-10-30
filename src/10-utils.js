@@ -2,7 +2,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.6';
+  const VERSION = '1.0.7';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -62,6 +62,7 @@
     blurCovers: false,
     readerMode: 'vertical', // vertical | paged
     readerFit: 'width',     // width | contain
+    readerResolution: 'auto', // auto (site-resampled) | original (fullimg)
     tapZones: true,
     preload: 2,
   };

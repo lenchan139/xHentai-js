@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.6
+// @version      1.0.7
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.6';
+  const VERSION = '1.0.7';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -96,6 +96,7 @@
     blurCovers: false,
     readerMode: 'vertical', // vertical | paged
     readerFit: 'width',     // width | contain
+    readerResolution: 'auto', // auto (site-resampled) | original (fullimg)
     tapZones: true,
     preload: 2,
   };
@@ -3332,10 +3333,13 @@
         throw err;
       }
 
+      const useOriginal = settings.readerResolution === 'original' && !!parsed.fullUrl;
       const record = {
         idx,
         url: parsed.index && parsed.index !== idx ? rec.url : rec.url,
-        src: parsed.src,
+        src: useOriginal ? parsed.fullUrl : parsed.src,
+        original: useOriginal,
+        resampled: parsed.src,
         w: parsed.w || 800,
         h: parsed.h || 1122,
         total: parsed.total || r.total || 1,
@@ -3530,14 +3534,22 @@
         if (l) l.remove();
         el.classList.remove('ehx-failed');
       };
-      img.onerror = () => {
-        el.dataset.loading = '';
-        failSlot(r, el, idx);
+      const startLoad = (src, canFallback) => {
+        img.onerror = () => {
+          if (canFallback && rec.resampled && rec.resampled !== src) {
+            toast('Original failed — using resampled');
+            startLoad(rec.resampled, false);
+            return;
+          }
+          el.dataset.loading = '';
+          failSlot(r, el, idx);
+        };
+        try { preconnectOrigin(new URL(src).origin); } catch { /* noop */ }
+        img.src = src;
       };
-      try { preconnectOrigin(new URL(rec.src).origin); } catch { /* noop */ }
-      img.src = rec.src;
+      startLoad(rec.src, !!rec.original);
       el.replaceChildren(img);
-      if (!r.cover) r.cover = rec.src;
+      if (!r.cover) r.cover = rec.resampled || rec.src;
       updateReaderUrl(r, idx, rec);
       if (idx === r.index) {
         updateChrome(r);
@@ -4015,6 +4027,7 @@
     if (!r) return;
     const mode = settings.readerMode === 'paged' ? 'paged' : 'vertical';
     const fit = settings.readerFit === 'contain' ? 'contain' : 'width';
+    const res = settings.readerResolution === 'original' ? 'original' : 'auto';
     const recNow = r.pages.get(r.index);
     const s = openSheet({
       title: 'Reader',
@@ -4031,11 +4044,18 @@
             <button data-fit="contain" class="${fit === 'contain' ? 'ehx-active' : ''}">Contain</button>
           </div>
         </div>
+        <div class="ehx-field"><label class="ehx-label">Image resolution</label>
+          <div class="ehx-seg" id="ehx-reader-res">
+            <button data-res="auto" class="${res === 'auto' ? 'ehx-active' : ''}">Resampled</button>
+            <button data-res="original" class="${res === 'original' ? 'ehx-active' : ''}">Original</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted2);margin:6px 0 0">${res === 'original' ? 'Original files can be several MB and load slowly.' : 'Server-resized WebP — fastest and usually 1280px.'}</p>
+        </div>
         <div class="ehx-group">
           <button class="ehx-drawer-item" data-rm="jump">${icon('jump', 20)}<span>Jump to page</span><span style="margin-left:auto;color:var(--muted2);font-size:12px">${r.index} / ${r.total}</span></button>
           <button class="ehx-drawer-item" data-rm="reload">${icon('refresh', 20)}<span>Reload this image</span></button>
           <button class="ehx-drawer-item" data-rm="image">${icon('external', 20)}<span>Open image in new tab</span></button>
-          ${recNow && recNow.fullUrl ? `<button class="ehx-drawer-item" data-rm="full">${icon('image', 20)}<span>Original resolution</span></button>` : ''}
+          ${recNow && recNow.fullUrl ? `<button class="ehx-drawer-item" data-rm="full">${icon('image', 20)}<span>Open original in new tab</span></button>` : ''}
           <button class="ehx-drawer-item" data-rm="gallery">${icon('book', 20)}<span>Gallery detail</span></button>
           <button class="ehx-drawer-item" data-rm="original">${icon('external', 20)}<span>Open original page</span></button>
           <button class="ehx-drawer-item" data-rm="share">${icon('share', 20)}<span>Share</span></button>
@@ -4056,6 +4076,15 @@
         r.fit = fitBtn.dataset.fit;
         r.root.classList.toggle('ehx-fit-contain', r.fit === 'contain');
         s.close();
+        return;
+      }
+      const resBtn = e.target.closest('[data-res]');
+      if (resBtn) {
+        saveSettings({ readerResolution: resBtn.dataset.res });
+        s.close();
+        r.pages.clear();
+        renderReaderLayout(r);
+        toast(resBtn.dataset.res === 'original' ? 'Loading original images' : 'Using resampled images');
         return;
       }
       const b = e.target.closest('[data-rm]');
@@ -4266,6 +4295,7 @@
       <div class="ehx-group">
         ${settingRow('Reading mode', 'Can also be changed inside the reader', segHtml('readerMode', settings.readerMode, [{ value: 'vertical', label: 'Vertical' }, { value: 'paged', label: 'Paged' }]))}
         ${settingRow('Image fit', 'Width fills the screen', segHtml('readerFit', settings.readerFit, [{ value: 'width', label: 'Width' }, { value: 'contain', label: 'Contain' }]))}
+        ${settingRow('Image resolution', 'Resampled is faster; original can be several MB', segHtml('readerResolution', settings.readerResolution, [{ value: 'auto', label: 'Resampled' }, { value: 'original', label: 'Original' }]))}
         ${settingRow('Preload pages', 'Pages fetched ahead', segHtml('preload', settings.preload, preloadOpts))}
         ${settingRow('Tap zones', 'Left/right thirds turn pages', switchHtml('tapZones', settings.tapZones))}
       </div>

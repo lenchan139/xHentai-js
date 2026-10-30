@@ -70,6 +70,11 @@ const server = http.createServer(async (req, res) => {
     }
     let file = fileFor(req.url);
     if (u.pathname === '/favorites.php' && /ipb_member_id=/.test(req.headers.cookie || '')) file = 'index.html';
+    if (u.pathname.startsWith('/fullimg/')) {
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
+      res.end(PNG);
+      return;
+    }
     if (!file) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('not found');
@@ -193,6 +198,25 @@ try {
   ok('reader jump resolves page 7', (await txt('.ehx-rcount')) === '7 / 18', await txt('.ehx-rcount'));
   await new Promise((r) => setTimeout(r, 450));
 
+  console.log('   · reader image resolution');
+  await page.evaluate(() => document.querySelector('.ehx-rchrome').classList.remove('ehx-hidden'));
+  await page.click('[data-r="menu"]');
+  await page.waitForSelector('[data-res="original"]', { timeout: 5000 });
+  await new Promise((r) => setTimeout(r, 420));
+  await page.click('[data-res="original"]');
+  await page.waitForFunction(() => /\/fullimg\//.test((document.querySelector('.ehx-rpage[data-idx="7"] img') || {}).src || ''), { timeout: 10000 });
+  ok('reader can switch to original resolution', true);
+  ok('resolution setting saved', await page.evaluate(() => JSON.parse(localStorage.getItem('ehx.settings')).readerResolution) === 'original');
+
+  await page.evaluate(() => document.querySelector('.ehx-rchrome').classList.remove('ehx-hidden'));
+  await page.click('[data-r="menu"]');
+  await page.waitForSelector('[data-res="auto"]', { timeout: 5000 });
+  await new Promise((r) => setTimeout(r, 420));
+  await page.click('[data-res="auto"]');
+  await page.waitForFunction(() => /xres=/.test((document.querySelector('.ehx-rpage[data-idx="7"] img') || {}).src || ''), { timeout: 10000 });
+  ok('reader can switch back to resampled', true);
+  await new Promise((r) => setTimeout(r, 450));
+
   await page.evaluate(() => document.querySelector('.ehx-rchrome').classList.remove('ehx-hidden'));
   await page.click('[data-r="back"]');
   await page.waitForSelector('.ehx-dtitle', { timeout: 8000 });
@@ -231,6 +255,7 @@ try {
   await page.waitForSelector('[data-set="theme"]', { timeout: 6000 });
   await new Promise((r) => setTimeout(r, 400));
   ok('settings page rendered', await count('[data-set="theme"]') === 3);
+  ok('reader resolution setting present', await count('[data-set="readerResolution"]') === 2);
   await page.click('[data-set="theme"][data-value="light"]');
   await page.waitForFunction(() => document.documentElement.dataset.ehxTheme === 'light', { timeout: 4000 });
   ok('light theme applied', (await page.evaluate(() => document.documentElement.dataset.ehxTheme)) === 'light');

@@ -58,10 +58,13 @@
         throw err;
       }
 
+      const useOriginal = settings.readerResolution === 'original' && !!parsed.fullUrl;
       const record = {
         idx,
         url: parsed.index && parsed.index !== idx ? rec.url : rec.url,
-        src: parsed.src,
+        src: useOriginal ? parsed.fullUrl : parsed.src,
+        original: useOriginal,
+        resampled: parsed.src,
         w: parsed.w || 800,
         h: parsed.h || 1122,
         total: parsed.total || r.total || 1,
@@ -256,14 +259,22 @@
         if (l) l.remove();
         el.classList.remove('ehx-failed');
       };
-      img.onerror = () => {
-        el.dataset.loading = '';
-        failSlot(r, el, idx);
+      const startLoad = (src, canFallback) => {
+        img.onerror = () => {
+          if (canFallback && rec.resampled && rec.resampled !== src) {
+            toast('Original failed — using resampled');
+            startLoad(rec.resampled, false);
+            return;
+          }
+          el.dataset.loading = '';
+          failSlot(r, el, idx);
+        };
+        try { preconnectOrigin(new URL(src).origin); } catch { /* noop */ }
+        img.src = src;
       };
-      try { preconnectOrigin(new URL(rec.src).origin); } catch { /* noop */ }
-      img.src = rec.src;
+      startLoad(rec.src, !!rec.original);
       el.replaceChildren(img);
-      if (!r.cover) r.cover = rec.src;
+      if (!r.cover) r.cover = rec.resampled || rec.src;
       updateReaderUrl(r, idx, rec);
       if (idx === r.index) {
         updateChrome(r);

@@ -154,6 +154,7 @@
       <div class="ehx-group">
         ${settingRow('Reading mode', 'Can also be changed inside the reader', segHtml('readerMode', settings.readerMode, [{ value: 'vertical', label: 'Vertical' }, { value: 'paged', label: 'Paged' }]))}
         ${settingRow('Image fit', 'Width fills the screen', segHtml('readerFit', settings.readerFit, [{ value: 'width', label: 'Width' }, { value: 'contain', label: 'Contain' }]))}
+        ${settingRow('Image resolution', 'Resampled is faster; original can be several MB', segHtml('readerResolution', settings.readerResolution, [{ value: 'auto', label: 'Resampled' }, { value: 'original', label: 'Original' }]))}
         ${settingRow('Preload pages', 'Pages fetched ahead', segHtml('preload', settings.preload, preloadOpts))}
         ${settingRow('Tap zones', 'Left/right thirds turn pages', switchHtml('tapZones', settings.tapZones))}
       </div>
