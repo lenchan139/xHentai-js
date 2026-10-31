@@ -149,7 +149,7 @@ try {
   console.log('\nHome / list');
   ok('app shell rendered', await count('#ehx-app') === 1);
   ok('25 gallery cards', await count('.ehx-card') === 25, String(await count('.ehx-card')));
-  ok('bottom tab bar has 6 tabs', await count('.ehx-tab') === 6);
+  ok('bottom tab bar has 5 tabs', await count('.ehx-tab') === 5);
   ok('Watched tab present', await count('.ehx-tab[href="/watched"]') === 1);
   await page.click('.ehx-tab[href="/watched"]');
   await page.waitForFunction(() => location.pathname === '/watched', { timeout: 6000 });
@@ -251,7 +251,7 @@ try {
   ok('category chip active', await count('.ehx-chips a[href="/doujinshi"].ehx-active') === 1);
 
   console.log('\nSearch');
-  await page.click('.ehx-tab[href="/#ehx-search"]');
+  await page.click('#ehx-topbar [data-act="search"]');
   await page.waitForSelector('#ehx-search-input', { timeout: 6000 });
   ok('search page rendered', await count('#ehx-search-input') === 1);
   await page.type('#ehx-search-input', 'blue archive');

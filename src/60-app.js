@@ -81,7 +81,6 @@
     { id: 'popular', icon: 'popular', label: 'Popular', href: '/popular' },
     { id: 'favorites', icon: 'heart', label: 'Favorites', href: '/favorites.php' },
     { id: 'watched', icon: 'eye', label: 'Watched', href: '/watched' },
-    { id: 'search', icon: 'search', label: 'Search', href: '/#ehx-search' },
     { id: 'more', icon: 'menu', label: 'More', act: 'drawer' },
   ];
 
@@ -291,6 +290,7 @@
       { icon: 'popular', label: 'Popular', href: '/popular' },
       { icon: 'heart', label: 'Favorites', href: '/favorites.php' },
       { icon: 'eye', label: 'Watched', href: '/watched' },
+      { icon: 'search', label: 'Search', href: '/#ehx-search' },
       { icon: 'star', label: 'Toplists', href: '/toplist.php' },
       { icon: 'history', label: 'History', href: '/#ehx-history' },
       { icon: 'settings', label: 'Settings', href: '/#ehx-settings' },
