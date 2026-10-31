@@ -206,6 +206,10 @@ console.log('\nparseReader');
   ok('gallery url', /\/g\/4291744\/019be8a2c7\//.test(r.galleryUrl), r.galleryUrl);
   ok('full url', /fullimg/.test(r.fullUrl), r.fullUrl);
   ok('size', r.w === 800 && r.h === 1122, r.w + 'x' + r.h);
+  ok('showkey', r.showkey === 't5lpzpzaodp', r.showkey);
+  ok('api url', r.apiUrl === 'https://api.e-hentai.org/api.php', r.apiUrl);
+  ok('gid', String(r.gid) === '4291744', String(r.gid));
+  ok('imgkey', r.imgkey === '09d5205fd3', r.imgkey);
 }
 
 console.log('\nparseToplist');

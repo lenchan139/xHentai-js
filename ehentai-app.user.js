@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.23
+// @version      1.1.0
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.23';
+  const VERSION = '1.1.0';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -249,6 +249,9 @@
   function clearRuntimeCaches() {
     htmlCache.clear();
     pageUrlCache.clear();
+    try { favoritesCache.clear(); } catch { /* not initialised yet */ }
+    store.del('favorites');
+    persistClear();
   }
 
   // ---------------------------------------------------------------------------
@@ -977,6 +980,101 @@
   const fetchStarted = new Set();
   const MAX_FETCHES = 3;
 
+  // Persistent HTML cache (Cache API). It survives reloads and is used as a
+  // stale-while-revalidate layer in front of the in-memory cache.
+  const PERSIST_CACHE = 'ehx-html-v1';
+  const PERSIST_MAX = 60;
+  const PERSIST_STALE_MS = 10 * 60 * 1000;
+  const persistRevalidating = new Set();
+
+  function persistSupported() {
+    return typeof caches !== 'undefined' && !!caches.open;
+  }
+
+  function persistAllowed(abs) {
+    try {
+      const u = new URL(abs);
+      if (u.origin !== location.origin) return false;
+      if (/^\/(favorites\.php|watched|home\.php)(\/|$)/.test(u.pathname)) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function persistRead(abs) {
+    if (!persistSupported() || !persistAllowed(abs)) return null;
+    try {
+      const cache = await caches.open(PERSIST_CACHE);
+      const res = await cache.match(abs);
+      if (!res) return null;
+      const at = Number(res.headers.get('x-ehx-at')) || 0;
+      const html = await res.text();
+      return html ? { at, html } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function persistWrite(abs, html) {
+    if (!persistSupported() || !persistAllowed(abs) || !html) return;
+    try {
+      const cache = await caches.open(PERSIST_CACHE);
+      await cache.put(abs, new Response(html, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'x-ehx-at': String(Date.now()),
+        },
+      }));
+      const keys = await cache.keys();
+      if (keys.length <= PERSIST_MAX) return;
+      const rows = [];
+      for (const req of keys) {
+        const res = await cache.match(req);
+        rows.push({ req, at: Number(res && res.headers.get('x-ehx-at')) || 0 });
+      }
+      rows.sort((a, b) => a.at - b.at);
+      for (const row of rows.slice(0, rows.length - PERSIST_MAX)) await cache.delete(row.req);
+    } catch {
+      /* cache quota / private mode */
+    }
+  }
+
+  async function persistDelete(abs) {
+    if (!persistSupported()) return;
+    try {
+      const cache = await caches.open(PERSIST_CACHE);
+      await cache.delete(abs);
+    } catch { /* noop */ }
+  }
+
+  async function persistClear() {
+    if (!persistSupported()) return;
+    try { await caches.delete(PERSIST_CACHE); } catch { /* noop */ }
+  }
+
+  function persistRevalidate(abs) {
+    if (persistRevalidating.has(abs) || !persistAllowed(abs)) return;
+    persistRevalidating.add(abs);
+    withFetchSlot(async () => {
+      try {
+        const res = await fetch(abs, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'text/html,application/xhtml+xml' },
+        });
+        if (!res.ok) return;
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        if (loginPage(doc) || sadPanda(doc) || challengePage(doc)) return;
+        htmlCache.set(abs, { at: Date.now(), doc, text: html, url: res.url || abs });
+        persistWrite(abs, html);
+      } catch { /* background */ } finally {
+        persistRevalidating.delete(abs);
+      }
+    }, false);
+  }
+
   function withFetchSlot(fn, priority = false) {
     return new Promise((resolve, reject) => {
       const run = () => {
@@ -1001,6 +1099,20 @@
     if (!abs) throw new Error('Bad URL');
     const hit = htmlCache.get(abs);
     if (!force && hit && Date.now() - hit.at < ttl) return hit;
+    if (!force && !hit) {
+      const persisted = await persistRead(abs);
+      if (persisted) {
+        const pdoc = new DOMParser().parseFromString(persisted.html, 'text/html');
+        if (loginPage(pdoc) || sadPanda(pdoc) || challengePage(pdoc)) {
+          persistDelete(abs);
+        } else {
+          const rec = { at: persisted.at, doc: pdoc, text: persisted.html, url: abs };
+          htmlCache.set(abs, rec);
+          if (Date.now() - persisted.at > PERSIST_STALE_MS) persistRevalidate(abs);
+          return rec;
+        }
+      }
+    }
     // Share an in-flight request, but let a real navigation jump ahead of a
     // queued background warm-up instead of waiting behind it.
     if (!force && fetchInflight.has(abs)) {
@@ -1037,7 +1149,10 @@
         }
         const rec = { at: Date.now(), doc, text: html, url: res.url || abs };
         // Never cache login/sad-panda pages: they can go stale immediately after login.
-        if (!loginPage(doc) && !sadPanda(doc)) htmlCache.set(abs, rec);
+        if (!loginPage(doc) && !sadPanda(doc)) {
+          htmlCache.set(abs, rec);
+          if (persistAllowed(abs)) persistWrite(abs, html);
+        }
         if (htmlCache.size > 70) {
           const oldest = [...htmlCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
           if (oldest) htmlCache.delete(oldest[0]);
@@ -1557,6 +1672,18 @@
     const galleryUrl = galleryEl ? absUrl(galleryEl.getAttribute('href'), base) : '';
     const fullEl = doc.querySelector('#i6 a[href*="/fullimg/"]');
 
+    const inline = Array.from(doc.querySelectorAll('script:not([src])')).map((s) => s.textContent).join('\n');
+    const grab = (name) => {
+      const m = inline.match(new RegExp('var\\s+' + name + '\\s*=\\s*"([^"]*)"'));
+      return m ? m[1] : '';
+    };
+    const grabNum = (name) => {
+      const m = inline.match(new RegExp('var\\s+' + name + '\\s*=\\s*(-?\\d+)'));
+      return m ? parseInt(m[1], 10) : null;
+    };
+    const pageGid = grabNum('gid') || (base.match(/\/g\/(\d+)\//) || [])[1] || '';
+    const imgkey = (base.match(/\/s\/([0-9a-f]+)\//i) || [])[1] || '';
+
     return {
       title: text(doc.querySelector('#i1 h1')),
       src,
@@ -1574,6 +1701,10 @@
       failed: !src,
       login: loginPage(doc),
       sad: sadPanda(doc),
+      showkey: grab('showkey'),
+      apiUrl: grab('api_url'),
+      gid: pageGid,
+      imgkey,
     };
   }
 
@@ -2256,7 +2387,11 @@
   function logout() {
     confirmSheet('Log out?', 'This opens the forum logout page. Local reading history stays on this device.', { ok: 'Log out', danger: true })
       .then((yes) => {
-        if (yes) openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
+        if (!yes) return;
+        store.del('favorites');
+        try { favoritesCache.clear(); } catch { /* noop */ }
+        persistClear();
+        openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
       });
   }
 
@@ -2619,6 +2754,34 @@
   const listMemory = new Map();
   const favoritesCache = new Map();
   const FAVORITES_TTL = 300000;
+  const FAV_STORE = 'favorites';
+  const favRefreshing = new Set();
+
+  function persistFavorites(url, data) {
+    if (!url || !data || !Array.isArray(data.items) || data.loggedOut || data.sad) return;
+    try { store.set(FAV_STORE, { url, at: Date.now(), data }); } catch { /* quota */ }
+  }
+
+  function persistedFavorites(url) {
+    const p = store.get(FAV_STORE, null);
+    if (!p || p.url !== url || !p.data || !Array.isArray(p.data.items)) return null;
+    return p;
+  }
+
+  function backgroundFavoritesRefresh(url) {
+    if (favRefreshing.has(url)) return;
+    favRefreshing.add(url);
+    fetchDoc(url, { force: true })
+      .then((rec) => {
+        const d = parseList(rec.doc, rec.url);
+        if (!d.loggedOut && !d.sad) {
+          favoritesCache.set(url, { at: Date.now(), data: d });
+          persistFavorites(url, d);
+        }
+      })
+      .catch(() => { /* background */ })
+      .finally(() => favRefreshing.delete(url));
+  }
 
   function rememberList(url, state) {
     if (!url || !state || !state.items) return;
@@ -2642,13 +2805,18 @@
   function preloadFavorites() {
     if (app.route && (app.route.name === 'reader' || app.route.kind === 'favorites.php')) return;
     const url = canonicalListUrl('/favorites.php');
+    const persisted = persistedFavorites(url);
+    if (persisted && !favoritesCache.has(url)) favoritesCache.set(url, { at: persisted.at, data: persisted.data });
     const hit = favoritesCache.get(url);
     const weakHit = hit && hit.data && hit.data.items && hit.data.items.length && hit.data.items.every((g) => !g.cover);
     if (hit && !weakHit && Date.now() - hit.at < FAVORITES_TTL) return;
     fetchDoc(url, { ttl: 120000 })
       .then((rec) => {
         const data = parseList(rec.doc, rec.url);
-        if (!data.loggedOut && !data.sad) favoritesCache.set(url, { at: Date.now(), data });
+        if (!data.loggedOut && !data.sad) {
+          favoritesCache.set(url, { at: Date.now(), data });
+          persistFavorites(url, data);
+        }
       })
       .catch(() => { /* background warm-up */ });
   }
@@ -2756,10 +2924,18 @@
       : null;
     let fromCache = false;
     if (!data && isFav && !opts.force) {
-      const cachedFav = favoritesCache.get(favUrl);
-      if (cachedFav && Date.now() - cachedFav.at < FAVORITES_TTL) {
+      let cachedFav = favoritesCache.get(favUrl);
+      if (!cachedFav) {
+        const persisted = persistedFavorites(favUrl);
+        if (persisted) {
+          cachedFav = { at: persisted.at, data: persisted.data };
+          favoritesCache.set(favUrl, cachedFav);
+        }
+      }
+      if (cachedFav) {
         data = cachedFav.data;
         fromCache = true;
+        if (Date.now() - cachedFav.at >= FAVORITES_TTL) backgroundFavoritesRefresh(favUrl);
       }
     }
     if (!data && initialDoc) {
@@ -2799,7 +2975,10 @@
       return;
     }
 
-    if (isFav && !fromCache) favoritesCache.set(favUrl, { at: Date.now(), data });
+    if (isFav && !fromCache) {
+      favoritesCache.set(favUrl, { at: Date.now(), data });
+      persistFavorites(favUrl, data);
+    }
 
     const items = data.items || [];
     for (const g of items.slice(0, 16)) {
@@ -3567,6 +3746,50 @@
     return pageUrlCache.get(key) || '';
   }
 
+  async function fetchShowPage(r, idx, pageUrl) {
+    const imgkey = (pageUrl.match(/\/s\/([0-9a-f]+)\//i) || [])[1];
+    if (!r.showkey || !r.apiUrl || !r.gid || !imgkey) throw new Error('No showpage context');
+    const res = await fetch(r.apiUrl, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        method: 'showpage',
+        gid: Number(r.gid),
+        page: idx,
+        imgkey,
+        showkey: r.showkey,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { throw new Error('Bad showpage JSON'); }
+    if (!data || data.error || !data.i3) throw new Error((data && data.error) || 'No image');
+    const doc = new DOMParser().parseFromString(
+      `<div id="i3">${data.i3}</div><div id="i6">${data.i6 || ''}</div>`,
+      'text/html',
+    );
+    const img = doc.querySelector('#i3 img#img') || doc.querySelector('#i3 img');
+    if (!img) throw new Error('No image');
+    const src = safeImage(img.getAttribute('src'));
+    if (!src) throw new Error('No image');
+    const fullEl = doc.querySelector('#i6 a[href*="/fullimg/"]');
+    return {
+      src,
+      w: stylePx(img, 'width') || num(data.x) || 800,
+      h: stylePx(img, 'height') || num(data.y) || 1122,
+      index: num(data.p) || idx,
+      total: r.total,
+      pageInfo: String(data.i || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+      galleryUrl: r.galleryUrl,
+      fullUrl: fullEl ? absUrl(fullEl.getAttribute('href'), pageUrl) : '',
+      login: false,
+      sad: false,
+    };
+  }
+
   async function getReaderRecord(r, idx, { force = false, priority = false } = {}) {
     if (!r) throw new Error('Reader closed');
     const existing = r.pages.get(idx);
@@ -3580,13 +3803,25 @@
       }
       if (!pageUrl) throw new Error('Could not resolve page ' + idx);
 
-      const rec = await fetchDoc(pageUrl, { force, priority });
-      if (sadPanda(rec.doc) || loginPage(rec.doc)) {
-        const err = new Error('Login required');
-        err.login = true;
-        throw err;
+      let parsed = null;
+      let apiFailed = false;
+      const imgkey = (pageUrl.match(/\/s\/([0-9a-f]+)\//i) || [])[1];
+      if (r.showkey && r.apiUrl && r.gid && imgkey) {
+        try { parsed = await fetchShowPage(r, idx, pageUrl); } catch { apiFailed = true; parsed = null; }
       }
-      const parsed = parseReader(rec.doc, rec.url);
+      if (!parsed) {
+        const rec = await fetchDoc(pageUrl, { force: force || apiFailed, priority });
+        if (sadPanda(rec.doc) || loginPage(rec.doc)) {
+          const err = new Error('Login required');
+          err.login = true;
+          throw err;
+        }
+        parsed = parseReader(rec.doc, rec.url);
+        if (parsed.showkey) {
+          r.showkey = parsed.showkey;
+          r.apiUrl = parsed.apiUrl;
+        }
+      }
       if (parsed.login || parsed.sad) {
         const err = new Error('Login required');
         err.login = true;
@@ -3601,7 +3836,7 @@
       const useOriginal = settings.readerResolution === 'original' && !!parsed.fullUrl;
       const record = {
         idx,
-        url: parsed.index && parsed.index !== idx ? rec.url : rec.url,
+        url: pageUrl,
         src: useOriginal ? parsed.fullUrl : parsed.src,
         original: useOriginal,
         resampled: parsed.src,
@@ -4075,6 +4310,8 @@
       cover: (prevProg && prevProg.cover) || '',
       firstW: first.w || 800,
       firstH: first.h || 1122,
+      showkey: first.showkey || '',
+      apiUrl: first.apiUrl || '',
       vis: new Map(),
     };
     const r = reader;

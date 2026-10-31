@@ -638,7 +638,11 @@
   function logout() {
     confirmSheet('Log out?', 'This opens the forum logout page. Local reading history stays on this device.', { ok: 'Log out', danger: true })
       .then((yes) => {
-        if (yes) openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
+        if (!yes) return;
+        store.del('favorites');
+        try { favoritesCache.clear(); } catch { /* noop */ }
+        persistClear();
+        openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
       });
   }
 

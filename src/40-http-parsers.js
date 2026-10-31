@@ -8,6 +8,101 @@
   const fetchStarted = new Set();
   const MAX_FETCHES = 3;
 
+  // Persistent HTML cache (Cache API). It survives reloads and is used as a
+  // stale-while-revalidate layer in front of the in-memory cache.
+  const PERSIST_CACHE = 'ehx-html-v1';
+  const PERSIST_MAX = 60;
+  const PERSIST_STALE_MS = 10 * 60 * 1000;
+  const persistRevalidating = new Set();
+
+  function persistSupported() {
+    return typeof caches !== 'undefined' && !!caches.open;
+  }
+
+  function persistAllowed(abs) {
+    try {
+      const u = new URL(abs);
+      if (u.origin !== location.origin) return false;
+      if (/^\/(favorites\.php|watched|home\.php)(\/|$)/.test(u.pathname)) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function persistRead(abs) {
+    if (!persistSupported() || !persistAllowed(abs)) return null;
+    try {
+      const cache = await caches.open(PERSIST_CACHE);
+      const res = await cache.match(abs);
+      if (!res) return null;
+      const at = Number(res.headers.get('x-ehx-at')) || 0;
+      const html = await res.text();
+      return html ? { at, html } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function persistWrite(abs, html) {
+    if (!persistSupported() || !persistAllowed(abs) || !html) return;
+    try {
+      const cache = await caches.open(PERSIST_CACHE);
+      await cache.put(abs, new Response(html, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'x-ehx-at': String(Date.now()),
+        },
+      }));
+      const keys = await cache.keys();
+      if (keys.length <= PERSIST_MAX) return;
+      const rows = [];
+      for (const req of keys) {
+        const res = await cache.match(req);
+        rows.push({ req, at: Number(res && res.headers.get('x-ehx-at')) || 0 });
+      }
+      rows.sort((a, b) => a.at - b.at);
+      for (const row of rows.slice(0, rows.length - PERSIST_MAX)) await cache.delete(row.req);
+    } catch {
+      /* cache quota / private mode */
+    }
+  }
+
+  async function persistDelete(abs) {
+    if (!persistSupported()) return;
+    try {
+      const cache = await caches.open(PERSIST_CACHE);
+      await cache.delete(abs);
+    } catch { /* noop */ }
+  }
+
+  async function persistClear() {
+    if (!persistSupported()) return;
+    try { await caches.delete(PERSIST_CACHE); } catch { /* noop */ }
+  }
+
+  function persistRevalidate(abs) {
+    if (persistRevalidating.has(abs) || !persistAllowed(abs)) return;
+    persistRevalidating.add(abs);
+    withFetchSlot(async () => {
+      try {
+        const res = await fetch(abs, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'text/html,application/xhtml+xml' },
+        });
+        if (!res.ok) return;
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        if (loginPage(doc) || sadPanda(doc) || challengePage(doc)) return;
+        htmlCache.set(abs, { at: Date.now(), doc, text: html, url: res.url || abs });
+        persistWrite(abs, html);
+      } catch { /* background */ } finally {
+        persistRevalidating.delete(abs);
+      }
+    }, false);
+  }
+
   function withFetchSlot(fn, priority = false) {
     return new Promise((resolve, reject) => {
       const run = () => {
@@ -32,6 +127,20 @@
     if (!abs) throw new Error('Bad URL');
     const hit = htmlCache.get(abs);
     if (!force && hit && Date.now() - hit.at < ttl) return hit;
+    if (!force && !hit) {
+      const persisted = await persistRead(abs);
+      if (persisted) {
+        const pdoc = new DOMParser().parseFromString(persisted.html, 'text/html');
+        if (loginPage(pdoc) || sadPanda(pdoc) || challengePage(pdoc)) {
+          persistDelete(abs);
+        } else {
+          const rec = { at: persisted.at, doc: pdoc, text: persisted.html, url: abs };
+          htmlCache.set(abs, rec);
+          if (Date.now() - persisted.at > PERSIST_STALE_MS) persistRevalidate(abs);
+          return rec;
+        }
+      }
+    }
     // Share an in-flight request, but let a real navigation jump ahead of a
     // queued background warm-up instead of waiting behind it.
     if (!force && fetchInflight.has(abs)) {
@@ -68,7 +177,10 @@
         }
         const rec = { at: Date.now(), doc, text: html, url: res.url || abs };
         // Never cache login/sad-panda pages: they can go stale immediately after login.
-        if (!loginPage(doc) && !sadPanda(doc)) htmlCache.set(abs, rec);
+        if (!loginPage(doc) && !sadPanda(doc)) {
+          htmlCache.set(abs, rec);
+          if (persistAllowed(abs)) persistWrite(abs, html);
+        }
         if (htmlCache.size > 70) {
           const oldest = [...htmlCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
           if (oldest) htmlCache.delete(oldest[0]);
@@ -588,6 +700,18 @@
     const galleryUrl = galleryEl ? absUrl(galleryEl.getAttribute('href'), base) : '';
     const fullEl = doc.querySelector('#i6 a[href*="/fullimg/"]');
 
+    const inline = Array.from(doc.querySelectorAll('script:not([src])')).map((s) => s.textContent).join('\n');
+    const grab = (name) => {
+      const m = inline.match(new RegExp('var\\s+' + name + '\\s*=\\s*"([^"]*)"'));
+      return m ? m[1] : '';
+    };
+    const grabNum = (name) => {
+      const m = inline.match(new RegExp('var\\s+' + name + '\\s*=\\s*(-?\\d+)'));
+      return m ? parseInt(m[1], 10) : null;
+    };
+    const pageGid = grabNum('gid') || (base.match(/\/g\/(\d+)\//) || [])[1] || '';
+    const imgkey = (base.match(/\/s\/([0-9a-f]+)\//i) || [])[1] || '';
+
     return {
       title: text(doc.querySelector('#i1 h1')),
       src,
@@ -605,6 +729,10 @@
       failed: !src,
       login: loginPage(doc),
       sad: sadPanda(doc),
+      showkey: grab('showkey'),
+      apiUrl: grab('api_url'),
+      gid: pageGid,
+      imgkey,
     };
   }
 

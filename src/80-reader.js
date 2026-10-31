@@ -38,6 +38,50 @@
     return pageUrlCache.get(key) || '';
   }
 
+  async function fetchShowPage(r, idx, pageUrl) {
+    const imgkey = (pageUrl.match(/\/s\/([0-9a-f]+)\//i) || [])[1];
+    if (!r.showkey || !r.apiUrl || !r.gid || !imgkey) throw new Error('No showpage context');
+    const res = await fetch(r.apiUrl, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        method: 'showpage',
+        gid: Number(r.gid),
+        page: idx,
+        imgkey,
+        showkey: r.showkey,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { throw new Error('Bad showpage JSON'); }
+    if (!data || data.error || !data.i3) throw new Error((data && data.error) || 'No image');
+    const doc = new DOMParser().parseFromString(
+      `<div id="i3">${data.i3}</div><div id="i6">${data.i6 || ''}</div>`,
+      'text/html',
+    );
+    const img = doc.querySelector('#i3 img#img') || doc.querySelector('#i3 img');
+    if (!img) throw new Error('No image');
+    const src = safeImage(img.getAttribute('src'));
+    if (!src) throw new Error('No image');
+    const fullEl = doc.querySelector('#i6 a[href*="/fullimg/"]');
+    return {
+      src,
+      w: stylePx(img, 'width') || num(data.x) || 800,
+      h: stylePx(img, 'height') || num(data.y) || 1122,
+      index: num(data.p) || idx,
+      total: r.total,
+      pageInfo: String(data.i || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+      galleryUrl: r.galleryUrl,
+      fullUrl: fullEl ? absUrl(fullEl.getAttribute('href'), pageUrl) : '',
+      login: false,
+      sad: false,
+    };
+  }
+
   async function getReaderRecord(r, idx, { force = false, priority = false } = {}) {
     if (!r) throw new Error('Reader closed');
     const existing = r.pages.get(idx);
@@ -51,13 +95,25 @@
       }
       if (!pageUrl) throw new Error('Could not resolve page ' + idx);
 
-      const rec = await fetchDoc(pageUrl, { force, priority });
-      if (sadPanda(rec.doc) || loginPage(rec.doc)) {
-        const err = new Error('Login required');
-        err.login = true;
-        throw err;
+      let parsed = null;
+      let apiFailed = false;
+      const imgkey = (pageUrl.match(/\/s\/([0-9a-f]+)\//i) || [])[1];
+      if (r.showkey && r.apiUrl && r.gid && imgkey) {
+        try { parsed = await fetchShowPage(r, idx, pageUrl); } catch { apiFailed = true; parsed = null; }
       }
-      const parsed = parseReader(rec.doc, rec.url);
+      if (!parsed) {
+        const rec = await fetchDoc(pageUrl, { force: force || apiFailed, priority });
+        if (sadPanda(rec.doc) || loginPage(rec.doc)) {
+          const err = new Error('Login required');
+          err.login = true;
+          throw err;
+        }
+        parsed = parseReader(rec.doc, rec.url);
+        if (parsed.showkey) {
+          r.showkey = parsed.showkey;
+          r.apiUrl = parsed.apiUrl;
+        }
+      }
       if (parsed.login || parsed.sad) {
         const err = new Error('Login required');
         err.login = true;
@@ -72,7 +128,7 @@
       const useOriginal = settings.readerResolution === 'original' && !!parsed.fullUrl;
       const record = {
         idx,
-        url: parsed.index && parsed.index !== idx ? rec.url : rec.url,
+        url: pageUrl,
         src: useOriginal ? parsed.fullUrl : parsed.src,
         original: useOriginal,
         resampled: parsed.src,
@@ -546,6 +602,8 @@
       cover: (prevProg && prevProg.cover) || '',
       firstW: first.w || 800,
       firstH: first.h || 1122,
+      showkey: first.showkey || '',
+      apiUrl: first.apiUrl || '',
       vis: new Map(),
     };
     const r = reader;

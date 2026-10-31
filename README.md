@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.23/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.23%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.23/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.1.0%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -47,6 +47,11 @@ plain JavaScript running in your own browser.
   cache.
 - **Login** — password or cookie login. Favorites and ratings work in-app; other
   account actions open the original site.
+- **Fast repeat loads** — gallery HTML is stored in the browser Cache API and
+  shown immediately on repeat visits, then refreshed in the background. Favorites
+  are persisted too.
+- **Reader API** — after the first page, pages load through E-Hentai’s `showpage`
+  JSON API instead of fetching a full `/s/` HTML page.
 - **Update notifier** — checks the `main` branch in the background and shows an
   “Update available” banner that can be dismissed for 24 hours; **Settings →
   Check for updates** also works manually.
@@ -54,15 +59,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.0.23 (cache-free):**
+**Direct install snapshot — v1.1.0 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.23/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.0.23](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.23/ehentai-app.user.js)
+- [Install v1.1.0](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -80,7 +85,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.0.23 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.23/ehentai-app.user.js)
+3. Open the [v1.1.0 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -91,7 +96,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.0.23 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.23/ehentai-app.user.js)
+   On My iPhone), then save the [v1.1.0 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -288,9 +293,11 @@ site. Favorites and ratings are the two account actions implemented in-app.
   If the page is blank rather than slow, see the `yay` note above.
 
 **Favorites feels slow**
-- The app warms Favorites shortly after launch and keeps a five-minute cache. The
-  first load still depends on E-Hentai's own favorites query. If a Cloudflare check
-  appears, complete it on the original site; the app leaves it visible.
+- The app warms Favorites shortly after launch, keeps a five-minute in-memory
+  cache and a persisted copy. Repeat visits show the persisted list immediately
+  and refresh in the background. The first load still depends on E-Hentai's own
+  favorites query. If a Cloudflare check appears, complete it on the original
+  site; the app leaves it visible.
 
 **Covers or the detail page feel slow**
 - Covers are the same 250 px thumbnails the site itself uses; the cover hosts can take

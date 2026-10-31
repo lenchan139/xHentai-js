@@ -6,6 +6,34 @@
   const listMemory = new Map();
   const favoritesCache = new Map();
   const FAVORITES_TTL = 300000;
+  const FAV_STORE = 'favorites';
+  const favRefreshing = new Set();
+
+  function persistFavorites(url, data) {
+    if (!url || !data || !Array.isArray(data.items) || data.loggedOut || data.sad) return;
+    try { store.set(FAV_STORE, { url, at: Date.now(), data }); } catch { /* quota */ }
+  }
+
+  function persistedFavorites(url) {
+    const p = store.get(FAV_STORE, null);
+    if (!p || p.url !== url || !p.data || !Array.isArray(p.data.items)) return null;
+    return p;
+  }
+
+  function backgroundFavoritesRefresh(url) {
+    if (favRefreshing.has(url)) return;
+    favRefreshing.add(url);
+    fetchDoc(url, { force: true })
+      .then((rec) => {
+        const d = parseList(rec.doc, rec.url);
+        if (!d.loggedOut && !d.sad) {
+          favoritesCache.set(url, { at: Date.now(), data: d });
+          persistFavorites(url, d);
+        }
+      })
+      .catch(() => { /* background */ })
+      .finally(() => favRefreshing.delete(url));
+  }
 
   function rememberList(url, state) {
     if (!url || !state || !state.items) return;
@@ -29,13 +57,18 @@
   function preloadFavorites() {
     if (app.route && (app.route.name === 'reader' || app.route.kind === 'favorites.php')) return;
     const url = canonicalListUrl('/favorites.php');
+    const persisted = persistedFavorites(url);
+    if (persisted && !favoritesCache.has(url)) favoritesCache.set(url, { at: persisted.at, data: persisted.data });
     const hit = favoritesCache.get(url);
     const weakHit = hit && hit.data && hit.data.items && hit.data.items.length && hit.data.items.every((g) => !g.cover);
     if (hit && !weakHit && Date.now() - hit.at < FAVORITES_TTL) return;
     fetchDoc(url, { ttl: 120000 })
       .then((rec) => {
         const data = parseList(rec.doc, rec.url);
-        if (!data.loggedOut && !data.sad) favoritesCache.set(url, { at: Date.now(), data });
+        if (!data.loggedOut && !data.sad) {
+          favoritesCache.set(url, { at: Date.now(), data });
+          persistFavorites(url, data);
+        }
       })
       .catch(() => { /* background warm-up */ });
   }
@@ -143,10 +176,18 @@
       : null;
     let fromCache = false;
     if (!data && isFav && !opts.force) {
-      const cachedFav = favoritesCache.get(favUrl);
-      if (cachedFav && Date.now() - cachedFav.at < FAVORITES_TTL) {
+      let cachedFav = favoritesCache.get(favUrl);
+      if (!cachedFav) {
+        const persisted = persistedFavorites(favUrl);
+        if (persisted) {
+          cachedFav = { at: persisted.at, data: persisted.data };
+          favoritesCache.set(favUrl, cachedFav);
+        }
+      }
+      if (cachedFav) {
         data = cachedFav.data;
         fromCache = true;
+        if (Date.now() - cachedFav.at >= FAVORITES_TTL) backgroundFavoritesRefresh(favUrl);
       }
     }
     if (!data && initialDoc) {
@@ -186,7 +227,10 @@
       return;
     }
 
-    if (isFav && !fromCache) favoritesCache.set(favUrl, { at: Date.now(), data });
+    if (isFav && !fromCache) {
+      favoritesCache.set(favUrl, { at: Date.now(), data });
+      persistFavorites(favUrl, data);
+    }
 
     const items = data.items || [];
     for (const g of items.slice(0, 16)) {

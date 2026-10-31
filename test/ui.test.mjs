@@ -52,6 +52,8 @@ function fileFor(url) {
 
 let lastPost = null;
 let favRequests = 0;
+let showpageRequests = 0;
+let gRequests = 0;
 const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, BASE);
@@ -67,12 +69,32 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (u.pathname === '/__resetfav') { favRequests = 0; res.writeHead(204); res.end(); return; }
+    if (u.pathname === '/__showpage' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      let data = {};
+      try { data = JSON.parse(body || '{}'); } catch { /* ignore */ }
+      showpageRequests++;
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({
+        p: data.page,
+        s: `s/${data.imgkey}/sample-${data.page}`,
+        n: '',
+        i: `<div>page ${data.page}</div>`,
+        i3: '<img id="img" src="https://ehgt.org/g/1.png?xres=800" style="width:800px;height:1122px">',
+        i6: `<div><a href="/fullimg/1/${data.page}/x/1.png">original</a></div>`,
+        x: '800',
+        y: '1122',
+      }));
+      return;
+    }
     if (u.pathname === '/__update') {
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ version: '99.0.0' }));
       return;
     }
     if (u.pathname === '/favorites.php') favRequests++;
+    if (req.method === 'GET' && /^\/g\/\d+\//.test(u.pathname)) gRequests++;
     if (req.method === 'POST') {
       let body = '';
       for await (const chunk of req) body += chunk;
@@ -93,6 +115,7 @@ const server = http.createServer(async (req, res) => {
     let html = await fsp.readFile(path.join(raw, file), 'utf8');
     // Make every in-page link same-origin so the SPA can fetch it locally.
     html = html.replace(/https?:\/\/(www\.)?(e-hentai|exhentai)\.org/g, BASE);
+    html = html.replace(/https:\/\/api\.e-hentai\.org\/api\.php/g, BASE + '/__showpage');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
   } catch (e) {
@@ -234,6 +257,15 @@ try {
   ok('read action present', await count('[data-act="read"]') >= 1);
   ok('gallery menu button', await count('[data-act="detail-menu"]') === 1);
 
+  const cacheApi = await page.evaluate(() => typeof caches !== 'undefined');
+  const gBefore = gRequests;
+  await new Promise((r) => setTimeout(r, 600));
+  await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.ehx-card', { timeout: 8000 });
+  await page.click('.ehx-card');
+  await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
+  if (cacheApi) ok('detail reused persistent cache after reload', gRequests === gBefore, gBefore + ' -> ' + gRequests);
+
   console.log('\nReader');
   await page.click('[data-act="read"]');
   await page.waitForSelector('.ehx-reader .ehx-rpage img', { timeout: 10000 });
@@ -245,6 +277,7 @@ try {
   await page.click('[data-r="next"]');
   await page.waitForFunction(() => document.querySelector('.ehx-rcount')?.textContent.trim().startsWith('2 /'), { timeout: 8000 });
   ok('next page updates counter', (await txt('.ehx-rcount')) === '2 / 18', await txt('.ehx-rcount'));
+  ok('reader used the showpage API', showpageRequests > 0, String(showpageRequests));
 
   console.log('   · reader jump');
   await page.evaluate(() => document.querySelector('.ehx-rchrome').classList.remove('ehx-hidden'));
@@ -395,6 +428,7 @@ try {
   ok('favorite sheet closed after save', await count('.ehx-sheet.ehx-open') === 0);
 
   console.log('\nFavorites warm cache');
+  await page.evaluate(() => localStorage.removeItem('ehx.favorites'));
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
   await page.evaluate(() => fetch('/__resetfav'));
@@ -409,6 +443,16 @@ try {
   ok('favorites tab used warm cache', after.favRequests === before.favRequests, JSON.stringify(after));
   ok('favorites rendered quickly', elapsed < 1200, elapsed + 'ms');
   ok('favorites has 25 cards', await count('.ehx-card') === 25, String(await count('.ehx-card')));
+
+  await page.evaluate(() => fetch('/__resetfav'));
+  await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.ehx-card', { timeout: 8000 });
+  await new Promise((r) => setTimeout(r, 1200));
+  const beforePersist = await page.evaluate(() => fetch('/__stats').then((r) => r.json()));
+  await page.click('.ehx-tab[href="/favorites.php"]');
+  await page.waitForSelector('#ehx-gallery-grid .ehx-card', { timeout: 6000 });
+  const afterPersist = await page.evaluate(() => fetch('/__stats').then((r) => r.json()));
+  ok('favorites reused persistent cache', afterPersist.favRequests === beforePersist.favRequests, JSON.stringify({ beforePersist, afterPersist }));
 
   console.log('\nExHentai wrapped page previews');
   await page.goto(BASE + '/g/1922802/711f9187e5/', { waitUntil: 'domcontentloaded' });

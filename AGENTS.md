@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **84 parser / 78 UI** assertions, both suites must pass
+- Current expectation: **88 parser / 81 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -242,7 +242,12 @@ stale async renders after the user navigates again.
   gallery detail pages (`?p=<thumb page>`), cached in `pageUrlCache`. It starts
   with 20 thumbnails per page and retries with the parsed `thumbsPerPage` (40 at
   Small), so reading works with either site setting.
-- `getReaderRecord()` fetches the `/s/` page, parses it, and keeps:
+- `getReaderRecord()` uses the page's `showkey`/`api_url` (parsed from the first
+  `/s/` page) to POST `{method:'showpage', gid, page, imgkey, showkey}` to
+  `s.exhentai.org/api.php` or `api.e-hentai.org/api.php`. The JSON `i3`/`i6`
+  fields supply the image and original URL. A failed API call falls back to a
+  forced `/s/` fetch, which also refreshes `showkey`. The first page always uses
+  `/s/` to establish the context. It keeps:
   - `src` — resampled image (default) or `/fullimg/` when
     `settings.readerResolution === 'original'`;
   - `resampled` — always the resampled URL, used as a fallback;
@@ -274,8 +279,23 @@ preload       1..4
 ```
 
 `localStorage` keys include `ehx.settings`, `ehx.progress`, `ehx.history`,
-`ehx.searches`, `ehx.update` (update check cache/dismissal) and the page cache.
-Cookies stay in the browser's cookie store.
+`ehx.searches`, `ehx.update` (update check cache/dismissal), `ehx.favorites`
+(persisted favorites data) and the page cache. Cookies stay in the browser's
+cookie store.
+
+### Persistent cache (`src/40-http-parsers.js`, `src/70-list.js`)
+
+- `fetchDoc` has a Cache API layer (`ehx-html-v1`, 60 entries) behind the
+  in-memory cache. A persisted page is returned immediately; if it is older than
+  10 minutes, `persistRevalidate()` refreshes it in the background.
+- Favorites/watched/home pages are not persisted in the HTML cache. Login,
+  sad-panda and Cloudflare pages are never persisted.
+- Favorites data is persisted separately in `ehx.favorites`; the Favorites tab
+  renders it immediately and refreshes when older than five minutes.
+- `clearRuntimeCaches()` and logout clear the persistent HTML cache and
+  `ehx.favorites`.
+- Images cannot be stored with the Cache API: the image hosts do not send CORS
+  headers. The browser HTTP cache (one-year max-age) still applies.
 
 ## Site quirks and compatibility notes
 
@@ -380,6 +400,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
   and verifies the real `main/package.json` update banner.
 - `test/safari-watched-tags.mjs` — opens a live ExHentai gallery and checks the
   watched/normal tag pill classes and computed background colors.
+- `test/safari-showpage.mjs` — opens a live ExHentai reader and verifies the
+  `api.php` showpage request plus the page-2 image timing.
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.

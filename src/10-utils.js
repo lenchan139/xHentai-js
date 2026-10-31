@@ -2,7 +2,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.23';
+  const VERSION = '1.1.0';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -215,6 +215,9 @@
   function clearRuntimeCaches() {
     htmlCache.clear();
     pageUrlCache.clear();
+    try { favoritesCache.clear(); } catch { /* not initialised yet */ }
+    store.del('favorites');
+    persistClear();
   }
 
   // ---------------------------------------------------------------------------
