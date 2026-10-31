@@ -135,6 +135,27 @@ console.log('\nparseDetail (ExHentai wrapped preview)');
   ok('pages = 229', d.pages === 229, String(d.pages));
 }
 
+console.log('\nparseDetail (ExHentai small thumbnails)');
+{
+  const base = 'https://exhentai.org/g/3802196/f43d61f90b/';
+  const doc = load('detail-ex-small.html');
+  const d = P.parseDetail(doc, base);
+  ok('title', d.title.includes('Kikaikan'), d.title);
+  ok('40 thumbs per page', d.thumbs.length === 40, String(d.thumbs.length));
+  ok('thumbsPerPage = 40', d.thumbsPerPage === 40, String(d.thumbsPerPage));
+  ok('thumb width 100', d.thumbs[0].w === 100, String(d.thumbs[0].w));
+  ok('100px sprite offsets', d.thumbs[1].offX === -100, String(d.thumbs[1].offX));
+  ok('range total 92', d.thumbRange && d.thumbRange.total === 92, JSON.stringify(d.thumbRange));
+  ok('every thumb has a sprite', d.thumbs.every((t) => /hath\.network/.test(t.sprite)));
+}
+
+console.log('\nparseDetail (E-Hentai normal thumbnails)');
+{
+  const base = 'https://exhentai.org/g/1922802/711f9187e5/';
+  const d = P.parseDetail(load('detail-ex.html'), base);
+  ok('thumbsPerPage = 20', d.thumbsPerPage === 20, String(d.thumbsPerPage));
+}
+
 console.log('\nparseDetail (page 2 of a big gallery)');
 {
   const base = 'https://e-hentai.org/g/4291745/d068af7fe3/?p=1';

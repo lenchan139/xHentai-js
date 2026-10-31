@@ -245,7 +245,10 @@
     const firstThumb = data.thumbs[0];
     const totalPages = data.pages || (data.thumbRange && data.thumbRange.total) || data.thumbs.length || 0;
     const thumbPage = thumbPageOf(url);
-    const pageCount = data.thumbRange ? Math.ceil(data.thumbRange.total / 20) : Math.ceil((data.pages || 0) / 20);
+    const perThumbPage = data.thumbsPerPage || 20;
+    const pageCount = data.thumbRange
+      ? Math.ceil(data.thumbRange.total / perThumbPage)
+      : Math.ceil((data.pages || 0) / perThumbPage);
 
     app.main.innerHTML = `
       <div class="ehx-detail">

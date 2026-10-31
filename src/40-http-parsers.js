@@ -411,6 +411,15 @@
     }
     const gpc = text(doc.querySelector('.gpc')) || text(doc.querySelector('.gtb .gpc'));
     const rangeM = gpc.match(/Showing\s+([\d,]+)\s*-\s*([\d,]+)\s+of\s+([\d,]+)/i);
+    // E-Hentai fits 20 thumbs per page at 200px and 40 at 100px. The sheet
+    // class (gt200/gt100) and the first page's "Showing 1 - N" give the size.
+    const gdtEl = doc.querySelector('#gdt');
+    const gdtClass = gdtEl ? (gdtEl.getAttribute('class') || '') : '';
+    let thumbsPerPage = /gt100/.test(gdtClass) ? 40 : 20;
+    if (rangeM && num(rangeM[1]) === 1) {
+      const firstCount = num(rangeM[2]);
+      if (firstCount && firstCount > 0) thumbsPerPage = firstCount;
+    }
 
     // Inline API credentials (used for rating, voting, etc.).
     const scripts = Array.from(doc.querySelectorAll('script:not([src])')).map((s) => s.textContent).join('\n');
@@ -475,6 +484,7 @@
       thumbs,
       thumbPages,
       gpc,
+      thumbsPerPage,
       thumbRange: rangeM ? { from: num(rangeM[1]), to: num(rangeM[2]), total: num(rangeM[3]) } : null,
       comments,
       apikey,

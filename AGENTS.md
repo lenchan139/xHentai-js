@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **67 parser / 59 UI** assertions, both suites must pass
+- Current expectation: **75 parser / 62 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -86,6 +86,8 @@ npm run test:safari:mcp   # Safari MCP stdio harness
 - `detail-ex.html` — ExHentai detail page (each `#gdt` preview wrapped in an
   extra div with the “Page N” caption). This is the regression fixture for the
   v1.0.8 blank-preview bug.
+- `detail-ex-small.html` — the same gallery with the account Thumbnail Size set
+  to Small: `gt100`, 100px thumbs, 40 per page, 3 pages for 92 images.
 - `detail_p1.html` — page 2 of a 1,614-page gallery (thumbnail paging).
 - `reader.html`, `toplist.html`, `favorites.html`, `favpopup_loggedin.html`,
   `search.html`, `tag:language:chinese.html`, `popular.html`, `watched.html`.
@@ -160,7 +162,9 @@ stale async renders after the user navigates again.
     side effect we avoid.
 - `parseDetail(doc, base)` reads `#gn`/`#gj`, `#gd1` cover (img or background
   style), `#gdd` info table, `#taglist`, `#gdt` thumbnails, `.ptt` thumbnail page
-  links and inline `apikey`/`apiuid`.
+  links and inline `apikey`/`apiuid`. It also returns `thumbsPerPage`: 40 when
+  `#gdt` is `gt100` (Small thumbnails, 100px) and 20 when `gt200` (Normal/Auto,
+  200px); a first page with `Showing 1 - N` refines it.
   - Thumbnail markup has two shapes: `<a><div style="background:url(...)"></div></a>`
     on E-Hentai and `<a><div><div style="background:url(...)"></div><div>Page N</div></div></a>`
     on ExHentai. Always select `div[style*="url("]`, not the first `div`.
@@ -200,7 +204,9 @@ stale async renders after the user navigates again.
 ### Reader (`src/80-reader.js`, `src/85-reader-ui.js`)
 
 - `resolvePageUrl()` maps a page index to its `/s/<key>/<gid>-<n>` URL via the
-  gallery detail pages (`?p=<thumb page>`), cached in `pageUrlCache`.
+  gallery detail pages (`?p=<thumb page>`), cached in `pageUrlCache`. It starts
+  with 20 thumbnails per page and retries with the parsed `thumbsPerPage` (40 at
+  Small), so reading works with either site setting.
 - `getReaderRecord()` fetches the `/s/` page, parses it, and keeps:
   - `src` — resampled image (default) or `/fullimg/` when
     `settings.readerResolution === 'original'`;
@@ -266,12 +272,13 @@ These numbers guided the current design; they are not guarantees.
   Lazy hydration (first 4 eager, rest near viewport) keeps the first screen to
   one batch.
 - ExHentai covers: same 250 px size on `s.exhentai.org`, 0.5–4 s per image.
-- Detail sprite: one 200px-per-page sheet per 20 pages, 413–428 KB at
-  4000×300 for a 20-page range on a random `hath.network` host; 1.8–7.8 s in
-  curl tests, and up to ~11 s in one Safari run. The host sends
+- Detail sprite: at Normal size, one 200px-per-page sheet per 20 pages,
+  413–428 KB at 4000×300 for a 20-page range. At Small, it is 100px per page,
+  40 pages per sheet, 232 KB at 4000×150 (12-page last sheet: 72 KB at
+  1200×150). Both are on a random `hath.network` host, 1.8–10 s in curl tests,
+  up to ~11 s in one Safari run. The host sends
   `cache-control: public, max-age=31536000`, so it is instant after the first
   load. This is the site's low-res preview sheet, not full page images.
-  E-Hentai's account-level Thumbnail Size (Small) produces a smaller sheet.
 - Reader: `/s/` HTML ~0.4 s, 1280 px WebP ~0.4–0.8 s in Safari tests.
 - ExHentai `favorites.php`: ~11 s server time (see above).
 - ExHentai HTML TTFB is the dominant cost and highly variable: 0.5–10 s in Safari

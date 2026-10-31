@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.9
+// @version      1.0.10
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.9';
+  const VERSION = '1.0.10';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1354,6 +1354,15 @@
     }
     const gpc = text(doc.querySelector('.gpc')) || text(doc.querySelector('.gtb .gpc'));
     const rangeM = gpc.match(/Showing\s+([\d,]+)\s*-\s*([\d,]+)\s+of\s+([\d,]+)/i);
+    // E-Hentai fits 20 thumbs per page at 200px and 40 at 100px. The sheet
+    // class (gt200/gt100) and the first page's "Showing 1 - N" give the size.
+    const gdtEl = doc.querySelector('#gdt');
+    const gdtClass = gdtEl ? (gdtEl.getAttribute('class') || '') : '';
+    let thumbsPerPage = /gt100/.test(gdtClass) ? 40 : 20;
+    if (rangeM && num(rangeM[1]) === 1) {
+      const firstCount = num(rangeM[2]);
+      if (firstCount && firstCount > 0) thumbsPerPage = firstCount;
+    }
 
     // Inline API credentials (used for rating, voting, etc.).
     const scripts = Array.from(doc.querySelectorAll('script:not([src])')).map((s) => s.textContent).join('\n');
@@ -1418,6 +1427,7 @@
       thumbs,
       thumbPages,
       gpc,
+      thumbsPerPage,
       thumbRange: rangeM ? { from: num(rangeM[1]), to: num(rangeM[2]), total: num(rangeM[3]) } : null,
       comments,
       apikey,
@@ -2971,7 +2981,10 @@
     const firstThumb = data.thumbs[0];
     const totalPages = data.pages || (data.thumbRange && data.thumbRange.total) || data.thumbs.length || 0;
     const thumbPage = thumbPageOf(url);
-    const pageCount = data.thumbRange ? Math.ceil(data.thumbRange.total / 20) : Math.ceil((data.pages || 0) / 20);
+    const perThumbPage = data.thumbsPerPage || 20;
+    const pageCount = data.thumbRange
+      ? Math.ceil(data.thumbRange.total / perThumbPage)
+      : Math.ceil((data.pages || 0) / perThumbPage);
 
     app.main.innerHTML = `
       <div class="ehx-detail">
@@ -3307,9 +3320,16 @@
     if (pageUrlCache.has(key)) return pageUrlCache.get(key);
 
     const galleryUrl = absUrl(`/g/${gid}/${token}/`);
-    const p = Math.floor((idx - 1) / 20);
-    const tries = [p, p - 1, p + 1].filter((n) => n >= 0);
-    for (const pp of tries) {
+    const tries = [];
+    const addTries = (per) => {
+      const p = Math.floor((idx - 1) / per);
+      for (const n of [p, p - 1, p + 1]) {
+        if (n >= 0 && !tries.includes(n)) tries.push(n);
+      }
+    };
+    addTries(20);
+    for (let ti = 0; ti < tries.length; ti++) {
+      const pp = tries[ti];
       try {
         const rec = await fetchDoc(detailPageUrl(galleryUrl, pp), { ttl: 300000, priority: true });
         const d = parseDetail(rec.doc, rec.url);
@@ -3317,6 +3337,10 @@
         for (const t of d.thumbs) pageUrlCache.set(`${gid}:${t.idx}`, t.href);
         if (pageUrlCache.has(key)) return pageUrlCache.get(key);
         if (d.pages && idx > d.pages) break;
+        // The user's thumbnail size decides whether there are 20 or 40
+        // thumbnails per page; retry with the right page if it was 40.
+        const per = d.thumbsPerPage || 20;
+        addTries(per);
       } catch (e) {
         // Try the next thumbnail page.
       }

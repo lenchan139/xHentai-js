@@ -10,9 +10,16 @@
     if (pageUrlCache.has(key)) return pageUrlCache.get(key);
 
     const galleryUrl = absUrl(`/g/${gid}/${token}/`);
-    const p = Math.floor((idx - 1) / 20);
-    const tries = [p, p - 1, p + 1].filter((n) => n >= 0);
-    for (const pp of tries) {
+    const tries = [];
+    const addTries = (per) => {
+      const p = Math.floor((idx - 1) / per);
+      for (const n of [p, p - 1, p + 1]) {
+        if (n >= 0 && !tries.includes(n)) tries.push(n);
+      }
+    };
+    addTries(20);
+    for (let ti = 0; ti < tries.length; ti++) {
+      const pp = tries[ti];
       try {
         const rec = await fetchDoc(detailPageUrl(galleryUrl, pp), { ttl: 300000, priority: true });
         const d = parseDetail(rec.doc, rec.url);
@@ -20,6 +27,10 @@
         for (const t of d.thumbs) pageUrlCache.set(`${gid}:${t.idx}`, t.href);
         if (pageUrlCache.has(key)) return pageUrlCache.get(key);
         if (d.pages && idx > d.pages) break;
+        // The user's thumbnail size decides whether there are 20 or 40
+        // thumbnails per page; retry with the right page if it was 40.
+        const per = d.thumbsPerPage || 20;
+        addTries(per);
       } catch (e) {
         // Try the next thumbnail page.
       }

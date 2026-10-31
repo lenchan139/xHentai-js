@@ -29,6 +29,7 @@ const FILE_MAP = {
   '/g/4291744/019be8a2c7/': 'detail.html',
   '/g/4291745/d068af7fe3/': 'detail_p1.html',
   '/g/1922802/711f9187e5/': 'detail-ex.html',
+  '/g/3802196/f43d61f90b/': 'detail-ex-small.html',
   '/gallerypopups.php': 'favpopup_loggedin.html',
 };
 
@@ -367,6 +368,13 @@ try {
   }));
   ok('exhentai preview grid has 20 cells', exThumbs.length === 20, String(exThumbs.length));
   ok('every exhentai cell has art', exThumbs.every((t) => /hath\.network/.test(t.sprite) || /^https?:/.test(t.img)), JSON.stringify(exThumbs.slice(0, 2)));
+
+  console.log('\nExHentai small thumbnail grid');
+  await page.goto(BASE + '/g/3802196/f43d61f90b/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.ehx-thumb', { timeout: 8000 });
+  ok('40 small previews', await count('.ehx-thumb') === 40, String(await count('.ehx-thumb')));
+  ok('small pager shows 3 pages', (await txt('.ehx-thumbctl .ehx-grow')).includes('/ 3'), await txt('.ehx-thumbctl .ehx-grow'));
+  ok('small sprite base width is 100', await page.$eval('#ehx-thumbs', (el) => el.dataset.basew) === '100');
 
   console.log('\nConsole/page errors');
   ok('no uncaught errors', errors.length === 0, errors.slice(0, 5).join(' | '));
