@@ -81,7 +81,7 @@
     { id: 'popular', icon: 'popular', label: 'Popular', href: '/popular' },
     { id: 'favorites', icon: 'heart', label: 'Favorites', href: '/favorites.php' },
     { id: 'watched', icon: 'eye', label: 'Watched', href: '/watched' },
-    { id: 'more', icon: 'menu', label: 'More', act: 'drawer' },
+    { id: 'more', icon: 'menu', label: 'Menu', act: 'drawer' },
   ];
 
   function renderTabbar() {

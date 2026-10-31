@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.14
+// @version      1.0.15
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.14';
+  const VERSION = '1.0.15';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1643,7 +1643,7 @@
     { id: 'popular', icon: 'popular', label: 'Popular', href: '/popular' },
     { id: 'favorites', icon: 'heart', label: 'Favorites', href: '/favorites.php' },
     { id: 'watched', icon: 'eye', label: 'Watched', href: '/watched' },
-    { id: 'more', icon: 'menu', label: 'More', act: 'drawer' },
+    { id: 'more', icon: 'menu', label: 'Menu', act: 'drawer' },
   ];
 
   function renderTabbar() {
