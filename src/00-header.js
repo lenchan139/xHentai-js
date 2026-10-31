@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.8
+// @version      1.0.9
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT

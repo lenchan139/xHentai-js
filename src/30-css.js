@@ -362,6 +362,10 @@
     position:relative;overflow:hidden;border-radius:9px;background:var(--card2);
     border:1px solid var(--line);aspect-ratio:3/4;cursor:pointer;
   }
+  .ehx-thumb.ehx-thumb-loading{
+    background:linear-gradient(100deg,var(--card2) 20%,var(--shimmer) 40%,var(--card2) 60%);
+    background-size:200% 100%;animation:ehx-shimmer 1.6s linear infinite;
+  }
   .ehx-thumb-inner{
     position:absolute;left:0;top:0;width:200px;background-repeat:no-repeat;
     transform-origin:top left;pointer-events:none;transform:scale(var(--thumb-scale,.5));

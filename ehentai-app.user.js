@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.8
+// @version      1.0.9
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.8';
+  const VERSION = '1.0.9';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -739,6 +739,10 @@
   .ehx-thumb{
     position:relative;overflow:hidden;border-radius:9px;background:var(--card2);
     border:1px solid var(--line);aspect-ratio:3/4;cursor:pointer;
+  }
+  .ehx-thumb.ehx-thumb-loading{
+    background:linear-gradient(100deg,var(--card2) 20%,var(--shimmer) 40%,var(--card2) 60%);
+    background-size:200% 100%;animation:ehx-shimmer 1.6s linear infinite;
   }
   .ehx-thumb-inner{
     position:absolute;left:0;top:0;width:200px;background-repeat:no-repeat;
@@ -2749,7 +2753,7 @@
         ? `<div class="ehx-thumb-inner" data-sprite="${esc(t.sprite)}" data-ox="${t.offX}" data-oy="${t.offY}" style="width:${t.w}px;height:${t.h}px"></div>`
         : `<img loading="lazy" decoding="async" src="${esc(t.img)}" alt="">`;
       const ratio = t.sprite ? `${t.w}/${t.h}` : `${t.w}/${t.h}`;
-      return `<a class="ehx-thumb${currentIndex === t.idx ? ' ehx-read' : ''}" href="${esc(t.href)}" style="aspect-ratio:${ratio}">
+      return `<a class="ehx-thumb${currentIndex === t.idx ? ' ehx-read' : ''}${t.sprite ? ' ehx-thumb-loading' : ''}" href="${esc(t.href)}" style="aspect-ratio:${ratio}">
         ${sprite}<span class="ehx-thumb-num">${t.idx}</span>
       </a>`;
     }).join('');
@@ -3023,11 +3027,25 @@
     const thumbsEl = $('#ehx-thumbs');
     if (thumbsEl) {
       const cleanups = [];
+      let spritesPainted = false;
       const paintSprites = () => {
-        thumbsEl.querySelectorAll('[data-sprite]').forEach((el) => {
+        if (spritesPainted) return;
+        spritesPainted = true;
+        const cells = thumbsEl.querySelectorAll('[data-sprite]');
+        if (!cells.length) return;
+        const first = cells[0];
+        for (const el of cells) {
           el.style.backgroundImage = `url('${el.dataset.sprite}')`;
           el.style.backgroundPosition = `${el.dataset.ox}px ${el.dataset.oy}px`;
-        });
+        }
+        // Keep the shimmer until the sheet has actually decoded.
+        const probe = new Image();
+        const clear = () => {
+          thumbsEl.querySelectorAll('.ehx-thumb-loading').forEach((el) => el.classList.remove('ehx-thumb-loading'));
+        };
+        probe.onload = clear;
+        probe.onerror = clear;
+        probe.src = first.dataset.sprite;
       };
       if ('IntersectionObserver' in window) {
         const io = new IntersectionObserver((entries) => {
@@ -3037,9 +3055,13 @@
         }, { rootMargin: '400px 0px' });
         io.observe(thumbsEl);
         cleanups.push(() => io.disconnect());
-      } else {
-        paintSprites();
       }
+      // The grid sits below the fold, so waiting for it to scroll into view
+      // meant the 200px preview sheet only started downloading when the user
+      // reached it. Start it in the background after the hero instead.
+      const paintSoon = () => paintSprites();
+      if ('requestIdleCallback' in window) requestIdleCallback(paintSoon, { timeout: 1200 });
+      else setTimeout(paintSoon, 600);
       const setScale = () => {
         const cell = thumbsEl.querySelector('.ehx-thumb');
         if (!cell) return;

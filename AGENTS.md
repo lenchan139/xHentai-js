@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **67 parser / 58 UI** assertions, both suites must pass
+- Current expectation: **67 parser / 59 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -185,9 +185,12 @@ stale async renders after the user navigates again.
   and a working **Read** button before the gallery HTML arrives; the full render
   replaces it when the fetch completes.
 - The `#gdt` sprite sheet (one image per 20 pages, on a random
-  `*.hath.network` host) is deferred: `renderThumbGrid()` emits
-  `data-sprite`/`data-ox`/`data-oy`, and an `IntersectionObserver`
-  (`rootMargin: 400px`) applies the background only near the viewport.
+  `*.hath.network` host) is emitted as `data-sprite`/`data-ox`/`data-oy`.
+  An `IntersectionObserver` (`rootMargin: 400px`) paints it when the grid is
+  near the viewport, and an idle task also starts the paint early because the
+  grid usually sits below the fold. A `new Image()` probe forces the request
+  (Safari can defer offscreen CSS backgrounds) and the `.ehx-thumb-loading`
+  shimmer is removed once the sheet decodes.
 - The first reader page is warmed in the background with `fetchDoc(firstThumb.href)`
   after the detail page renders.
 - Covers and sprites are preconnected per origin.
@@ -263,7 +266,12 @@ These numbers guided the current design; they are not guarantees.
   Lazy hydration (first 4 eager, rest near viewport) keeps the first screen to
   one batch.
 - ExHentai covers: same 250 px size on `s.exhentai.org`, 0.5–4 s per image.
-- Detail sprite: 37 KB, 1.9–6 s depending on the random `hath.network` host.
+- Detail sprite: one 200px-per-page sheet per 20 pages, 413–428 KB at
+  4000×300 for a 20-page range on a random `hath.network` host; 1.8–7.8 s in
+  curl tests, and up to ~11 s in one Safari run. The host sends
+  `cache-control: public, max-age=31536000`, so it is instant after the first
+  load. This is the site's low-res preview sheet, not full page images.
+  E-Hentai's account-level Thumbnail Size (Small) produces a smaller sheet.
 - Reader: `/s/` HTML ~0.4 s, 1280 px WebP ~0.4–0.8 s in Safari tests.
 - ExHentai `favorites.php`: ~11 s server time (see above).
 - ExHentai HTML TTFB is the dominant cost and highly variable: 0.5–10 s in Safari
@@ -316,6 +324,9 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
 - `test/safari-ex-timing.mjs` — sets ExHentai cookies, then records Safari
   Navigation Timing (`requestStart` → `responseStart`) for the front page,
   favorites and a gallery detail page.
+- `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
+  thumbnails through the app, and checks when the preview sheet is painted and
+  requested.
 - `test/safari-listmode-debug.mjs` — compares `dm_e` / `dm_l` markup and cookie
   side effects.
 - `test/safari-favorites-debug.mjs` — kept-alive login, `yay` removal, favorites

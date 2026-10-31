@@ -169,6 +169,14 @@ try {
   await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
   ok('detail hero title', (await txt('.ehx-dtitle')).includes('ADE'), await txt('.ehx-dtitle'));
   ok('18 thumbnails', await count('.ehx-thumb') === 18, String(await count('.ehx-thumb')));
+  await page.waitForFunction(() => {
+    const cells = Array.from(document.querySelectorAll('[data-sprite]'));
+    return cells.length > 0 && cells.every((el) => /url\(/.test(el.style.backgroundImage || ''));
+  }, { timeout: 4000 });
+  ok('page previews hydrate without scrolling', await page.$$eval('.ehx-thumb', (els) => els.every((el) => {
+    const inner = el.querySelector('[data-sprite]');
+    return !inner || /url\(/.test(inner.style.backgroundImage || '');
+  })));
   ok('tags rendered', await count('.ehx-tagpill') > 8);
   ok('read action present', await count('[data-act="read"]') >= 1);
   ok('gallery menu button', await count('[data-act="detail-menu"]') === 1);
