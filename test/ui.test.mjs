@@ -371,9 +371,7 @@ try {
 
   console.log('\nPaged reader from history');
   step('click history card');
-  await page.$eval('.ehx-card', (el) => el.scrollIntoView({ block: 'center' }));
-  await new Promise((r) => setTimeout(r, 150));
-  await page.evaluate(() => document.querySelector('.ehx-card').click());
+  await page.evaluate(() => { const el = document.querySelector('.ehx-card'); if (el) el.click(); });
   await page.waitForSelector('.ehx-reader.ehx-paged', { timeout: 10000 });
   await page.waitForSelector('.ehx-reader .ehx-rpage img', { timeout: 10000 });
   ok('paged reader active', await count('.ehx-reader.ehx-paged') === 1);
@@ -432,7 +430,8 @@ try {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
   await page.evaluate(() => fetch('/__resetfav'));
-  await new Promise((r) => setTimeout(r, 2400));
+  await page.evaluate(() => window.__EHENTAI_APP__.preloadFavorites());
+  await new Promise((r) => setTimeout(r, 2500));
   const before = await page.evaluate(() => fetch('/__stats').then((r) => r.json()));
   const t0 = Date.now();
   await page.click('.ehx-tab[href="/favorites.php"]');

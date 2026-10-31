@@ -187,9 +187,11 @@ stale async renders after the user navigates again.
 
 ### List rendering (`src/70-list.js`)
 
-- Favorites are warmed after launch (`schedulePreload`) and cached for five
-  minutes (`FAVORITES_TTL`). A cache hit renders immediately; a weak cache hit
-  (items present but no covers) is refetched.
+- Favorites warm-up is deferred: `schedulePreload` resets a 5-second timer on
+  every navigation, then waits for idle and for `.ehx-cover-loading` to clear
+  before calling `preloadFavorites()`. This keeps the 7–10s ExHentai favorites
+  request from competing with list covers. Cached for five minutes
+  (`FAVORITES_TTL`); a cache hit renders immediately and a weak hit is refetched.
 - Renders the first 30 cards, then appends 30-card chunks via an
   `IntersectionObserver` sentinel (`rootMargin: 900px`).
 - Cover URLs are preconnected per origin (deduped) before cards render.
@@ -402,6 +404,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
   watched/normal tag pill classes and computed background colors.
 - `test/safari-showpage.mjs` — opens a live ExHentai reader and verifies the
   `api.php` showpage request plus the page-2 image timing.
+- `test/safari-list-timing.mjs` — traces a live ExHentai list: HTML TTFB, card
+  render, cover requests, favorites warm-up and update-check timing.
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.

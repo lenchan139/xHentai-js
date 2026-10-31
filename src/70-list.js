@@ -49,9 +49,27 @@
   }
 
   let preloadTimer = 0;
+  let preloadSeq = 0;
   function schedulePreload() {
-    if (preloadTimer) return;
-    preloadTimer = setTimeout(() => { preloadTimer = 0; preloadFavorites(); }, 800);
+    // Favorites is a 7-10s ExHentai request. Starting it 800ms after launch
+    // competed with the first covers and every list navigation. Wait until the
+    // user has been idle for a few seconds, and reset on every navigation.
+    const seq = ++preloadSeq;
+    clearTimeout(preloadTimer);
+    preloadTimer = setTimeout(() => {
+      preloadTimer = 0;
+      const run = () => {
+        if (seq !== preloadSeq) return;
+        if (document.visibilityState === 'hidden') return;
+        if (document.querySelector('.ehx-cover-loading')) {
+          setTimeout(() => { if (seq === preloadSeq) preloadFavorites(); }, 1500);
+          return;
+        }
+        preloadFavorites();
+      };
+      if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 3000 });
+      else run();
+    }, 5000);
   }
 
   function preloadFavorites() {

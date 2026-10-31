@@ -2,7 +2,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);

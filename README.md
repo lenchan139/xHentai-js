@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.1.0%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.1/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.1.1%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.1/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -59,15 +59,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.1.0 (cache-free):**
+**Direct install snapshot — v1.1.1 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.1/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.1.0](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
+- [Install v1.1.1](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.1/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -85,7 +85,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.1.0 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
+3. Open the [v1.1.1 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.1/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -96,7 +96,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.1.0 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.0/ehentai-app.user.js)
+   On My iPhone), then save the [v1.1.1 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.1/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -293,8 +293,9 @@ site. Favorites and ratings are the two account actions implemented in-app.
   If the page is blank rather than slow, see the `yay` note above.
 
 **Favorites feels slow**
-- The app warms Favorites shortly after launch, keeps a five-minute in-memory
-  cache and a persisted copy. Repeat visits show the persisted list immediately
+- The app warms Favorites only after you have been idle for a few seconds and the
+  first covers have loaded, so the warm-up does not compete with the list. It
+  keeps a five-minute in-memory cache and a persisted copy. Repeat visits show the persisted list immediately
   and refresh in the background. The first load still depends on E-Hentai's own
   favorites query. If a Cloudflare check appears, complete it on the original
   site; the app leaves it visible.
