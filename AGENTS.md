@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **88 parser / 81 UI** assertions, both suites must pass
+- Current expectation: **88 parser / 82 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -193,7 +193,11 @@ stale async renders after the user navigates again.
   request from competing with list covers. Cached for five minutes
   (`FAVORITES_TTL`); a cache hit renders immediately and a weak hit is refetched.
 - Renders the first 30 cards, then appends 30-card chunks via an
-  `IntersectionObserver` sentinel (`rootMargin: 900px`).
+  `IntersectionObserver` sentinel (`rootMargin: 900px`). After the first render,
+  `scheduleNextListPrefetch` warms `state.next` after 1.5s + idle, so scrolling
+  into the next page usually hits the in-memory cache.
+- `canonicalListUrl` keeps `inline_set=dm_l` for the first page but drops it for
+  `?next=`/`?prev=` cursor URLs; favorites rejects inline_set with a 302.
 - Cover URLs are preconnected per origin (deduped) before cards render.
 
 ### Detail rendering (`src/75-detail.js`)
@@ -406,6 +410,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
   `api.php` showpage request plus the page-2 image timing.
 - `test/safari-list-timing.mjs` — traces a live ExHentai list: HTML TTFB, card
   render, cover requests, favorites warm-up and update-check timing.
+- `test/safari-favorites-scroll.mjs` — scrolls a live Favorites page and records
+  the next-page fetch and cover requests.
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.

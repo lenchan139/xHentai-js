@@ -50,6 +50,22 @@
 
   let preloadTimer = 0;
   let preloadSeq = 0;
+  let nextPrefetchTimer = 0;
+
+  function scheduleNextListPrefetch(state) {
+    clearTimeout(nextPrefetchTimer);
+    if (!state || !state.next) return;
+    const seq = app.navSeq;
+    nextPrefetchTimer = setTimeout(() => {
+      if (seq !== app.navSeq || !app.listState || app.listState.url !== state.url) return;
+      const run = () => {
+        if (seq !== app.navSeq) return;
+        fetchDoc(canonicalListUrl(state.next), { ttl: 120000 }).catch(() => { /* prefetch */ });
+      };
+      if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 2500 });
+      else run();
+    }, 1500);
+  }
   function schedulePreload() {
     // Favorites is a 7-10s ExHentai request. Starting it 800ms after launch
     // competed with the first covers and every list navigation. Wait until the
@@ -94,9 +110,15 @@
   function canonicalListUrl(url) {
     try {
       const u = new URL(url, location.href);
-      // Compact is the layout the parser and tests target, and unlike
-      // `dm_e` it does not rewrite the visitor's site display-mode cookie.
-      u.searchParams.set('inline_set', 'dm_l');
+      // Cursor pages (`?next=`/`?prev=`) reject inline_set with a 302 on
+      // favorites; the parser handles whatever layout the site returns.
+      if (u.searchParams.has('next') || u.searchParams.has('prev')) {
+        u.searchParams.delete('inline_set');
+      } else {
+        // Compact is the layout the parser and tests target, and unlike
+        // `dm_e` it does not rewrite the visitor's site display-mode cookie.
+        u.searchParams.set('inline_set', 'dm_l');
+      }
       return u.href;
     } catch {
       return url;
@@ -272,6 +294,7 @@
       count: items.length,
     };
     app.listState = state;
+    scheduleNextListPrefetch(state);
 
     const gridClass = 'ehx-grid' + (settings.layout === 'list' ? ' ehx-listmode' : '');
     const gridStyle = `--ehx-cols:${settings.columns}`;

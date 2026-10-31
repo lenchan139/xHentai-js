@@ -54,6 +54,7 @@ let lastPost = null;
 let favRequests = 0;
 let showpageRequests = 0;
 let gRequests = 0;
+let nextRequests = 0;
 const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, BASE);
@@ -93,7 +94,8 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ version: '99.0.0' }));
       return;
     }
-    if (u.pathname === '/favorites.php') favRequests++;
+    if (u.searchParams.has('next')) nextRequests++;
+    if (u.pathname === '/favorites.php' && !u.searchParams.has('next')) favRequests++;
     if (req.method === 'GET' && /^\/g\/\d+\//.test(u.pathname)) gRequests++;
     if (req.method === 'POST') {
       let body = '';
@@ -442,6 +444,8 @@ try {
   ok('favorites tab used warm cache', after.favRequests === before.favRequests, JSON.stringify(after));
   ok('favorites rendered quickly', elapsed < 1200, elapsed + 'ms');
   ok('favorites has 25 cards', await count('.ehx-card') === 25, String(await count('.ehx-card')));
+  await new Promise((r) => setTimeout(r, 4000));
+  ok('favorites prefetched the next page', nextRequests > 0, String(nextRequests));
 
   await page.evaluate(() => fetch('/__resetfav'));
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
