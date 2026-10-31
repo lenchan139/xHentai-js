@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **84 parser / 77 UI** assertions, both suites must pass
+- Current expectation: **84 parser / 78 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -164,6 +164,8 @@ stale async renders after the user navigates again.
     is the half-star variant. Values are stored on the 0–10 scale.
   - List tags include `.gt`/`.gtw`/`.gtl` and carry `watched`, but live list HTML
     normally has no `.gtw`; watched highlighting is a detail-page feature.
+  - `language` picks the first real language tag (skipping `translated`/`rewrite`);
+    `langCode()` maps it to a short code (JP/EN/CN/…) for the cover badge.
   - The app requests Compact (`inline_set=dm_l`) because it does **not** set a
     display-mode cookie. `dm_e` rewrites the visitor's `sl` cookie, which is a
     side effect we avoid.

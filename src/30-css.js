@@ -191,6 +191,7 @@
   }
   .ehx-badge.ehx-cat{left:7px;top:7px;text-transform:uppercase;background:var(--catcolor,#777);color:#120d18}
   .ehx-badge.ehx-pages{right:7px;bottom:7px;background:rgba(0,0,0,.7)}
+  .ehx-badge.ehx-lang{right:7px;bottom:7px;background:rgba(0,0,0,.7)}
   .ehx-badge.ehx-resume{left:7px;bottom:7px;background:var(--accent);color:var(--accent-ink)}
   .ehx-cover-blur{filter:blur(14px) saturate(.8);transform:scale(1.08)}
   .ehx-card-body{padding:9px 10px 10px}
@@ -235,6 +236,7 @@
   .ehx-listmode .ehx-card-tags{max-height:66px}
   .ehx-listmode .ehx-badge.ehx-cat{font-size:9px;height:18px;left:5px;top:5px}
   .ehx-listmode .ehx-badge.ehx-pages{right:5px;bottom:5px}
+  .ehx-listmode .ehx-badge.ehx-lang{right:5px;bottom:5px}
 
   /* ---------- Skeletons / states ---------- */
   .ehx-skel{background:linear-gradient(100deg,var(--card) 20%,var(--card2) 40%,var(--card) 60%);background-size:200% 100%;animation:ehx-shimmer 1.25s infinite linear;border-radius:var(--radius)}

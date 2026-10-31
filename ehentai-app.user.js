@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.22
+// @version      1.0.23
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.22';
+  const VERSION = '1.0.23';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -553,6 +553,7 @@
   }
   .ehx-badge.ehx-cat{left:7px;top:7px;text-transform:uppercase;background:var(--catcolor,#777);color:#120d18}
   .ehx-badge.ehx-pages{right:7px;bottom:7px;background:rgba(0,0,0,.7)}
+  .ehx-badge.ehx-lang{right:7px;bottom:7px;background:rgba(0,0,0,.7)}
   .ehx-badge.ehx-resume{left:7px;bottom:7px;background:var(--accent);color:var(--accent-ink)}
   .ehx-cover-blur{filter:blur(14px) saturate(.8);transform:scale(1.08)}
   .ehx-card-body{padding:9px 10px 10px}
@@ -597,6 +598,7 @@
   .ehx-listmode .ehx-card-tags{max-height:66px}
   .ehx-listmode .ehx-badge.ehx-cat{font-size:9px;height:18px;left:5px;top:5px}
   .ehx-listmode .ehx-badge.ehx-pages{right:5px;bottom:5px}
+  .ehx-listmode .ehx-badge.ehx-lang{right:5px;bottom:5px}
 
   /* ---------- Skeletons / states ---------- */
   .ehx-skel{background:linear-gradient(100deg,var(--card) 20%,var(--card2) 40%,var(--card) 60%);background-size:200% 100%;animation:ehx-shimmer 1.25s infinite linear;border-radius:var(--radius)}
@@ -1239,7 +1241,8 @@
           watched: el.classList.contains('gtw'),
         });
       }
-      const language = (tags.find((t) => t.ns === 'language') || {}).name || null;
+      const language = (tags.find((t) => t.ns === 'language' && !/^(translated|rewrite)$/i.test(t.name))
+        || tags.find((t) => t.ns === 'language') || {}).name || null;
 
       items.push({
         gid: m[1],
@@ -2261,6 +2264,20 @@
 
   function categoryColor(cat) { return CATEGORY_COLORS[cat] || '#9e9e9e'; }
 
+  const LANG_CODES = {
+    japanese: 'JP', english: 'EN', chinese: 'CN', korean: 'KR', spanish: 'ES',
+    french: 'FR', german: 'DE', portuguese: 'PT', russian: 'RU', italian: 'IT',
+    vietnamese: 'VI', thai: 'TH', polish: 'PL', indonesian: 'ID', dutch: 'NL',
+    hungarian: 'HU', czech: 'CS', arabic: 'AR', ukrainian: 'UA', turkish: 'TR',
+    romanian: 'RO', greek: 'GR', swedish: 'SV', finnish: 'FI', norwegian: 'NO',
+    danish: 'DA', hebrew: 'HE', hindi: 'HI', translated: 'TR', rewrite: 'RW',
+  };
+  function langCode(name) {
+    const key = String(name || '').trim().toLowerCase();
+    if (!key) return '';
+    return LANG_CODES[key] || key.slice(0, 2).toUpperCase();
+  }
+
   function tagPill(t, { nav = true, small = false } = {}) {
     const attrs = nav ? `data-tag="${esc(t.full || ((t.ns ? t.ns + ':' : '') + t.name))}"` : '';
     const cls = `ehx-tagpill${t.watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
@@ -2320,7 +2337,10 @@
       ? `<span class="ehx-rating ehx-rating-compact">${icon('star', 11)}${g.rating.toFixed(1)}</span>${ratingStars(g.rating)}`
       : '';
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
-    const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
+    const lang = langCode(g.language);
+    const pages = g.pages
+      ? `<span class="ehx-badge ehx-pages">${lang ? esc(lang) + ' ' : ''}${formatNum(g.pages)}P</span>`
+      : (lang ? `<span class="ehx-badge ehx-lang">${esc(lang)}</span>` : '');
     const imgAttrs = opts.eager
       ? `loading="eager" fetchpriority="high" decoding="async" src="${esc(g.cover)}"`
       : `loading="lazy" fetchpriority="low" decoding="async" data-cover="${esc(g.cover)}" src="${COVER_PLACEHOLDER}"`;

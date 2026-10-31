@@ -272,7 +272,8 @@
           watched: el.classList.contains('gtw'),
         });
       }
-      const language = (tags.find((t) => t.ns === 'language') || {}).name || null;
+      const language = (tags.find((t) => t.ns === 'language' && !/^(translated|rewrite)$/i.test(t.name))
+        || tags.find((t) => t.ns === 'language') || {}).name || null;
 
       items.push({
         gid: m[1],

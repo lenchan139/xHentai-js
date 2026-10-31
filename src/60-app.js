@@ -646,6 +646,20 @@
 
   function categoryColor(cat) { return CATEGORY_COLORS[cat] || '#9e9e9e'; }
 
+  const LANG_CODES = {
+    japanese: 'JP', english: 'EN', chinese: 'CN', korean: 'KR', spanish: 'ES',
+    french: 'FR', german: 'DE', portuguese: 'PT', russian: 'RU', italian: 'IT',
+    vietnamese: 'VI', thai: 'TH', polish: 'PL', indonesian: 'ID', dutch: 'NL',
+    hungarian: 'HU', czech: 'CS', arabic: 'AR', ukrainian: 'UA', turkish: 'TR',
+    romanian: 'RO', greek: 'GR', swedish: 'SV', finnish: 'FI', norwegian: 'NO',
+    danish: 'DA', hebrew: 'HE', hindi: 'HI', translated: 'TR', rewrite: 'RW',
+  };
+  function langCode(name) {
+    const key = String(name || '').trim().toLowerCase();
+    if (!key) return '';
+    return LANG_CODES[key] || key.slice(0, 2).toUpperCase();
+  }
+
   function tagPill(t, { nav = true, small = false } = {}) {
     const attrs = nav ? `data-tag="${esc(t.full || ((t.ns ? t.ns + ':' : '') + t.name))}"` : '';
     const cls = `ehx-tagpill${t.watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
@@ -705,7 +719,10 @@
       ? `<span class="ehx-rating ehx-rating-compact">${icon('star', 11)}${g.rating.toFixed(1)}</span>${ratingStars(g.rating)}`
       : '';
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
-    const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
+    const lang = langCode(g.language);
+    const pages = g.pages
+      ? `<span class="ehx-badge ehx-pages">${lang ? esc(lang) + ' ' : ''}${formatNum(g.pages)}P</span>`
+      : (lang ? `<span class="ehx-badge ehx-lang">${esc(lang)}</span>` : '');
     const imgAttrs = opts.eager
       ? `loading="eager" fetchpriority="high" decoding="async" src="${esc(g.cover)}"`
       : `loading="lazy" fetchpriority="low" decoding="async" data-cover="${esc(g.cover)}" src="${COVER_PLACEHOLDER}"`;

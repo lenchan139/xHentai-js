@@ -187,11 +187,13 @@ try {
     cover: el.querySelector('.ehx-cover').getBoundingClientRect().width,
     stars: el.querySelectorAll('.ehx-stars .ehx-star').length,
     tags: [...el.querySelectorAll('.ehx-tag')].map((t) => t.textContent),
+    lang: (el.querySelector('.ehx-pages') || {}).textContent || '',
   }));
   ok('list card is taller', listDims.h >= 130, listDims.h + 'px');
   ok('list cover is larger', listDims.cover >= 100, listDims.cover + 'px');
   ok('list card has a 5-star row', listDims.stars === 5, String(listDims.stars));
   ok('list card shows the language tag', listDims.tags.includes('portuguese'), JSON.stringify(listDims.tags));
+  ok('list card shows a language label', /^PT \d+P$/.test(listDims.lang), listDims.lang);
   await page.click('[data-act="toggle-layout"]');
   await page.waitForSelector('.ehx-grid:not(.ehx-listmode)', { timeout: 6000 });
 
