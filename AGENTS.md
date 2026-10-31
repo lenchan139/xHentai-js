@@ -366,6 +366,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
 - `test/safari-ex-timing.mjs` — sets ExHentai cookies, then records Safari
   Navigation Timing (`requestStart` → `responseStart`) for the front page,
   favorites and a gallery detail page.
+- `test/safari-update-check.mjs` — injects an older build into live e-hentai.org
+  and verifies the real `main/package.json` update banner.
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.
