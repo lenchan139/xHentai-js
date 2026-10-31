@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.21/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.21%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.21/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.22/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.22%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.22/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -31,7 +31,9 @@ plain JavaScript running in your own browser.
   colors, rating stars, page count, uploader, full date, read progress, infinite
   scroll, cover blur, favorites folder chips.
 - **Tag styling** — normal tags use a fixed gray pill; tags on your watched list
-  are highlighted blue. Tag definitions are stripped from the label.
+  are highlighted blue on the gallery detail page. Tag definitions are stripped
+  from the label. E-Hentai does not mark watched tags on list pages, so list cards
+  stay gray.
 - **Gallery detail** — full-bleed cover, one-tap Read/Favorite/Rate/Archive/Torrent/
   Comments/Share, info grid, grouped tags, page-preview grid with jump-to-page.
   The cover and title appear immediately when you tap a card, even if the site is
@@ -52,15 +54,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.0.21 (cache-free):**
+**Direct install snapshot — v1.0.22 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.21/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.22/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.0.21](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.21/ehentai-app.user.js)
+- [Install v1.0.22](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.22/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -78,7 +80,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.0.21 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.21/ehentai-app.user.js)
+3. Open the [v1.0.22 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.22/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -89,7 +91,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.0.21 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.21/ehentai-app.user.js)
+   On My iPhone), then save the [v1.0.22 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.22/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 

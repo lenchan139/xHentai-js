@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.21
+// @version      1.0.22
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.21';
+  const VERSION = '1.0.22';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -569,6 +569,7 @@
     font-size:9.5px;font-weight:700;white-space:nowrap;
     background:var(--tag-bg);color:var(--tag-fg);
   }
+  .ehx-tag.ehx-tag-watched{background:var(--tag-watched-bg);color:var(--tag-watched-fg)}
   .ehx-card-foot{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10.5px;color:var(--muted2)}
   .ehx-rating{display:inline-flex;align-items:center;gap:2px;color:#f5c451;font-weight:700;font-size:10.5px}
   .ehx-rating .ehx-i{width:11px;height:11px}
@@ -1226,8 +1227,8 @@
 
       const tags = [];
       const tagSeen = new Set();
-      for (const el of tr.querySelectorAll('.gl3c .gt, .gl3e .gt, .gt')) {
-        const full = (el.getAttribute('title') || text(el) || '').trim();
+      for (const el of tr.querySelectorAll('.gl3c .gt, .gl3c .gtw, .gl3c .gtl, .gl3e .gt, .gl3e .gtw, .gl3e .gtl, .gt, .gtw, .gtl')) {
+        const full = (el.getAttribute('title') || text(el) || '').split(' | ')[0].trim();
         if (!full || tagSeen.has(full)) continue;
         tagSeen.add(full);
         const idx = full.indexOf(':');
@@ -1235,6 +1236,7 @@
           ns: idx > 0 ? full.slice(0, idx) : '',
           name: idx > 0 ? full.slice(idx + 1) : full,
           full,
+          watched: el.classList.contains('gtw'),
         });
       }
       const language = (tags.find((t) => t.ns === 'language') || {}).name || null;
@@ -2326,7 +2328,7 @@
       ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
-      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag">${esc(t.name)}</span>`).join('')}</div>`
+      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag${t.watched ? ' ehx-tag-watched' : ''}">${esc(t.name)}</span>`).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
       <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">

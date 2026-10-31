@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **81 parser / 77 UI** assertions, both suites must pass
+- Current expectation: **84 parser / 77 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -162,6 +162,8 @@ stale async renders after the user navigates again.
   - List ratings come from the 80x16 `.ir` star sprite. The x offset selects
     5, 4, 3, 2 or 1 whole stars (`5 - |x|/16`); the lower sprite row (`y <= -20`)
     is the half-star variant. Values are stored on the 0–10 scale.
+  - List tags include `.gt`/`.gtw`/`.gtl` and carry `watched`, but live list HTML
+    normally has no `.gtw`; watched highlighting is a detail-page feature.
   - The app requests Compact (`inline_set=dm_l`) because it does **not** set a
     display-mode cookie. `dm_e` rewrites the visitor's `sl` cookie, which is a
     side effect we avoid.
@@ -374,6 +376,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
   favorites and a gallery detail page.
 - `test/safari-update-check.mjs` — injects an older build into live e-hentai.org
   and verifies the real `main/package.json` update banner.
+- `test/safari-watched-tags.mjs` — opens a live ExHentai gallery and checks the
+  watched/normal tag pill classes and computed background colors.
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.

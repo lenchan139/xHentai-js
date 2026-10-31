@@ -713,7 +713,7 @@
       ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
-      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag">${esc(t.name)}</span>`).join('')}</div>`
+      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag${t.watched ? ' ehx-tag-watched' : ''}">${esc(t.name)}</span>`).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
       <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">

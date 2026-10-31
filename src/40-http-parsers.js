@@ -260,8 +260,8 @@
 
       const tags = [];
       const tagSeen = new Set();
-      for (const el of tr.querySelectorAll('.gl3c .gt, .gl3e .gt, .gt')) {
-        const full = (el.getAttribute('title') || text(el) || '').trim();
+      for (const el of tr.querySelectorAll('.gl3c .gt, .gl3c .gtw, .gl3c .gtl, .gl3e .gt, .gl3e .gtw, .gl3e .gtl, .gt, .gtw, .gtl')) {
+        const full = (el.getAttribute('title') || text(el) || '').split(' | ')[0].trim();
         if (!full || tagSeen.has(full)) continue;
         tagSeen.add(full);
         const idx = full.indexOf(':');
@@ -269,6 +269,7 @@
           ns: idx > 0 ? full.slice(0, idx) : '',
           name: idx > 0 ? full.slice(idx + 1) : full,
           full,
+          watched: el.classList.contains('gtw'),
         });
       }
       const language = (tags.find((t) => t.ns === 'language') || {}).name || null;

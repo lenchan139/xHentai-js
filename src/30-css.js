@@ -207,6 +207,7 @@
     font-size:9.5px;font-weight:700;white-space:nowrap;
     background:var(--tag-bg);color:var(--tag-fg);
   }
+  .ehx-tag.ehx-tag-watched{background:var(--tag-watched-bg);color:var(--tag-watched-fg)}
   .ehx-card-foot{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10.5px;color:var(--muted2)}
   .ehx-rating{display:inline-flex;align-items:center;gap:2px;color:#f5c451;font-weight:700;font-size:10.5px}
   .ehx-rating .ehx-i{width:11px;height:11px}

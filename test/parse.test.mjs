@@ -84,6 +84,25 @@ console.log('\nparseList (minimal layout)');
   ok('uploader parsed', r.items[0].uploader === 'akihabaranokita', r.items[0].uploader);
 }
 
+console.log('\nparseList (watched tag)');
+{
+  const html = `<table class="itg"><tr>
+    <td class="gl1c"><div class="cn ct2">Doujinshi</div></td>
+    <td class="gl2c"><img data-src="https://ehgt.org/w/02/1/1.webp"></td>
+    <td class="gl3c"><a href="https://e-hentai.org/g/123/abc/"><div class="glink">Watched sample</div>
+      <div class="gt" title="language:chinese">chinese</div>
+      <div class="gtw" title="female:teacher">teacher</div>
+    </a></td>
+    <td class="gl4c"><div>4 pages</div></td>
+  </tr></table>`;
+  const r = P.parseList(parseHTML(html).document, 'https://e-hentai.org/');
+  const lang = r.items[0].tags.find((t) => t.full === 'language:chinese');
+  const watched = r.items[0].tags.find((t) => t.full === 'female:teacher');
+  ok('finds the row', r.items.length === 1, String(r.items.length));
+  ok('normal tag is not watched', lang && lang.watched === false);
+  ok('gtw tag is watched', watched && watched.watched === true);
+}
+
 console.log('\nparseList (search)');
 {
   const doc = load('search.html');
