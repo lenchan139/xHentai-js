@@ -281,6 +281,17 @@
   .ehx-tab.ehx-active{color:var(--accent)}
   .ehx-tab:active{background:var(--card2)}
   .ehx-tab.ehx-active .ehx-i{filter:drop-shadow(0 0 8px rgba(208,188,255,.45))}
+  .ehx-fab{
+    position:fixed;z-index:60;bottom:calc(var(--tabh) + var(--sab) + 16px);
+    width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+    background:var(--accent);color:var(--accent-ink);box-shadow:0 8px 24px rgba(0,0,0,.35);
+    opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .2s,transform .2s;
+  }
+  .ehx-fab-left{left:14px}
+  .ehx-fab-right{right:14px}
+  .ehx-fab.ehx-show{opacity:1;transform:none;pointer-events:auto}
+  .ehx-fab.ehx-hide{display:none}
+  .ehx-has-update .ehx-fab{bottom:calc(var(--tabh) + var(--sab) + 86px)}
 
   /* ---------- Drawer ---------- */
   .ehx-scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;opacity:0;pointer-events:none;transition:opacity .2s ease;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
@@ -548,6 +559,11 @@
   .ehx-searchbox .ehx-i{color:var(--muted2)}
   .ehx-searchbox input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:14px;color:var(--text)}
   .ehx-searchbox input::placeholder{color:var(--muted2)}
+  .ehx-suggest{margin:6px 0 0;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;max-height:260px;overflow-y:auto}
+  .ehx-suggest-item{display:block;width:100%;text-align:left;padding:9px 12px;font-size:12.5px;color:var(--text);border-bottom:1px solid var(--line)}
+  .ehx-suggest-item:last-child{border-bottom:0}
+  .ehx-suggest-item:active{background:var(--card2)}
+  .ehx-suggest-item b{color:var(--accent);font-weight:800}
 
   /* settings */
   .ehx-settings{padding:4px calc(12px + var(--sar)) 30px calc(12px + var(--sal))}

@@ -10,14 +10,12 @@
   const favRefreshing = new Set();
 
   function persistFavorites(url, data) {
-    if (!url || !data || !Array.isArray(data.items) || data.loggedOut || data.sad) return;
-    try { store.set(FAV_STORE, { url, at: Date.now(), data }); } catch { /* quota */ }
+    persistFavoritesEntry(url, data);
   }
 
-  function persistedFavorites(url) {
-    const p = store.get(FAV_STORE, null);
-    if (!p || p.url !== url || !p.data || !Array.isArray(p.data.items)) return null;
-    return p;
+  async function persistedFavorites(url) {
+    const entry = await persistedFavoritesEntry(url);
+    return entry && entry.data && Array.isArray(entry.data.items) ? entry : null;
   }
 
   function backgroundFavoritesRefresh(url) {
@@ -60,7 +58,20 @@
       if (seq !== app.navSeq || !app.listState || app.listState.url !== state.url) return;
       const run = () => {
         if (seq !== app.navSeq) return;
-        fetchDoc(canonicalListUrl(state.next), { ttl: 120000 }).catch(() => { /* prefetch */ });
+        const firstUrl = canonicalListUrl(state.next);
+        fetchDoc(firstUrl, { ttl: 120000 })
+          .then((rec) => {
+            if (seq !== app.navSeq) return;
+            const more = parseList(rec.doc, rec.url);
+            const secondUrl = more.next ? canonicalListUrl(more.next) : '';
+            if (!secondUrl || secondUrl === firstUrl) return;
+            const fetchSecond = () => {
+              if (seq === app.navSeq) fetchDoc(secondUrl, { ttl: 120000 }).catch(() => { /* prefetch */ });
+            };
+            if ('requestIdleCallback' in window) requestIdleCallback(fetchSecond, { timeout: 2500 });
+            else fetchSecond();
+          })
+          .catch(() => { /* prefetch */ });
       };
       if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 2500 });
       else run();
@@ -88,10 +99,10 @@
     }, 5000);
   }
 
-  function preloadFavorites() {
+  async function preloadFavorites() {
     if (app.route && (app.route.name === 'reader' || app.route.kind === 'favorites.php')) return;
     const url = canonicalListUrl('/favorites.php');
-    const persisted = persistedFavorites(url);
+    const persisted = await persistedFavorites(url);
     if (persisted && !favoritesCache.has(url)) favoritesCache.set(url, { at: persisted.at, data: persisted.data });
     const hit = favoritesCache.get(url);
     const weakHit = hit && hit.data && hit.data.items && hit.data.items.length && hit.data.items.every((g) => !g.cover);
@@ -110,15 +121,13 @@
   function canonicalListUrl(url) {
     try {
       const u = new URL(url, location.href);
-      // Cursor pages (`?next=`/`?prev=`) reject inline_set with a 302 on
-      // favorites; the parser handles whatever layout the site returns.
-      if (u.searchParams.has('next') || u.searchParams.has('prev')) {
-        u.searchParams.delete('inline_set');
-      } else {
-        // Compact is the layout the parser and tests target, and unlike
-        // `dm_e` it does not rewrite the visitor's site display-mode cookie.
-        u.searchParams.set('inline_set', 'dm_l');
-      }
+      // Favorites/watched and cursor pages reject inline_set with a 302; the
+      // parser handles whatever layout the site returns. Other lists use
+      // Compact, which unlike dm_e does not rewrite the display-mode cookie.
+      const noInline = u.searchParams.has('next') || u.searchParams.has('prev')
+        || /^\/(favorites\.php|watched)(\/|$)/.test(u.pathname);
+      if (noInline) u.searchParams.delete('inline_set');
+      else u.searchParams.set('inline_set', 'dm_l');
       return u.href;
     } catch {
       return url;
@@ -198,7 +207,7 @@
         ? (isTab ? '' : iconBtn('back', 'back', 'Back'))
         : iconBtn('back', 'back', 'Back'),
       title,
-      right: `${iconBtn('search', 'search', 'Search')}${iconBtn('refresh', 'refresh', 'Refresh')}${iconBtn('drawer', 'menu', 'Menu')}`,
+      right: `${iconBtn('calendar', 'calendar', 'Jump to date')}${iconBtn('search', 'search', 'Search')}${iconBtn('refresh', 'refresh', 'Refresh')}${iconBtn('drawer', 'menu', 'Menu')}`,
     });
     document.title = title + ' · ' + SITE_NAME;
 
@@ -218,7 +227,7 @@
     if (!data && isFav && !opts.force) {
       let cachedFav = favoritesCache.get(favUrl);
       if (!cachedFav) {
-        const persisted = persistedFavorites(favUrl);
+        const persisted = await persistedFavorites(favUrl);
         if (persisted) {
           cachedFav = { at: persisted.at, data: persisted.data };
           favoritesCache.set(favUrl, cachedFav);
@@ -252,6 +261,7 @@
       clearTimeout(slowTimer);
       if (opts.seq && opts.seq !== app.navSeq) return;
       data = parseList(rec.doc, rec.url);
+      cacheGalleryMetadata(data.items);
       fromCache = false;
     }
 
@@ -271,8 +281,8 @@
       favoritesCache.set(favUrl, { at: Date.now(), data });
       persistFavorites(favUrl, data);
     }
-
     const items = data.items || [];
+    cacheGalleryMetadata(items);
     for (const g of items.slice(0, 16)) {
       if (!g.cover) continue;
       try { preconnectOrigin(new URL(g.cover).origin); } catch { /* noop */ }
@@ -360,6 +370,7 @@
     onAction('edit-search', () => {
       app.lastQuery = q;
       app.lastFcats = parseQuery(url).get('f_cats') || '0';
+      app.searchBase = searchBaseUrl();
       navigate('/#ehx-search');
     });
 

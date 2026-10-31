@@ -91,7 +91,7 @@
 
       // Debug handle (harmless, useful in Safari Web Inspector).
       try {
-        window.__EHENTAI_APP__ = { version: VERSION, settings, app, parser: { parseList, parseDetail, parseReader }, navigate, preloadFavorites, checkForUpdate };
+        window.__EHENTAI_APP__ = { version: VERSION, settings, app, parser: { parseList, parseDetail, parseReader }, navigate, preloadFavorites, checkForUpdate, clearCaches: clearRuntimeCaches };
       } catch { /* noop */ }
     } catch (err) {
       console.error('[EHX boot]', err);

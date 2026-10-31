@@ -97,9 +97,36 @@
       }
       return `<a class="ehx-tab${active ? ' ehx-active' : ''}" href="${t.href}" aria-label="${t.label}">${inner}</a>`;
     }).join('');
+    renderFab();
+  }
+
+  function renderFab() {
+    if (!app.fab) return;
+    const mode = settings.scrollButton || 'left';
+    app.fab.style.display = mode === 'off' ? 'none' : '';
+    app.fab.classList.toggle('ehx-fab-left', mode !== 'right');
+    app.fab.classList.toggle('ehx-fab-right', mode === 'right');
+    const hidden = app.tab === 'none' || (app.route && app.route.name === 'reader');
+    app.fab.classList.toggle('ehx-hide', hidden);
+    app.fab.classList.toggle('ehx-show', !hidden && window.scrollY > 480);
   }
 
   // --- navigation -------------------------------------------------------------
+
+  function searchBaseUrl() {
+    const route = app.route;
+    if (!route || route.name !== 'list') return absUrl('/');
+    try {
+      const u = new URL(route.url || currentUrl(), location.href);
+      for (const k of ['f_search', 'f_cats', 'f_srdd', 'f_spf', 'f_spt', 'f_sto', 'f_sh', 'seek', 'next', 'prev', 'p']) {
+        u.searchParams.delete(k);
+      }
+      if (route.kind === 'popular') return absUrl('/');
+      return u.href;
+    } catch {
+      return absUrl('/');
+    }
+  }
 
   async function navigate(url, opts = {}) {
     const abs = absUrl(url);
@@ -459,6 +486,7 @@
   function hideUpdateBanner() {
     const el = document.getElementById('ehx-update');
     if (el) el.remove();
+    if (app.root) app.root.classList.remove('ehx-has-update');
   }
 
   function showUpdateBanner(latest, force = false) {
@@ -472,6 +500,7 @@
       el.id = 'ehx-update';
       el.className = 'ehx-update';
       app.root.appendChild(el);
+      app.root.classList.add('ehx-has-update');
     }
     el.innerHTML = `
       <div class="ehx-update-msg">
@@ -487,6 +516,7 @@
       });
       store.set('update', next);
       el.remove();
+      if (app.root) app.root.classList.remove('ehx-has-update');
     });
   }
 
@@ -639,8 +669,8 @@
     confirmSheet('Log out?', 'This opens the forum logout page. Local reading history stays on this device.', { ok: 'Log out', danger: true })
       .then((yes) => {
         if (!yes) return;
-        store.del('favorites');
         try { favoritesCache.clear(); } catch { /* noop */ }
+        clearMetadataCaches();
         persistClear();
         openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
       });
@@ -840,6 +870,7 @@
       const r = classify(abs);
       if (r.name !== 'external') {
         e.preventDefault();
+        if (r.name === 'search') app.searchBase = searchBaseUrl();
         // Hand the list item to the detail page so its hero can paint before
         // the (often slow) gallery HTML arrives.
         let gallery = null;
@@ -900,7 +931,12 @@
     onAction('close-drawer', () => closeDrawer());
     onAction('close-sheet', () => { const s = app.sheets[app.sheets.length - 1]; if (s) { s.scrim.remove(); s.sheet.remove(); app.sheets.pop(); document.body.style.overflow = app.sheets.length ? 'hidden' : ''; } });
     onAction('home', () => navigate('/'));
-    onAction('search', () => navigate('/#ehx-search'));
+    onAction('scroll-top', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    onAction('search', () => { app.searchBase = searchBaseUrl(); navigate('/#ehx-search'); });
+    onAction('calendar', () => {
+      const base = app.route && app.route.name === 'search' ? (app.searchBase || absUrl('/')) : currentUrl();
+      openCalendarSheet(base);
+    });
     onAction('settings', () => navigate('/#ehx-settings'));
     onAction('history', () => navigate('/#ehx-history'));
     onAction('login', () => openLoginSheet());
@@ -966,6 +1002,7 @@
       <header class="ehx-topbar" id="ehx-topbar"></header>
       <main class="ehx-main" id="ehx-main"></main>
       <nav class="ehx-tabbar" id="ehx-tabbar" aria-label="Primary"></nav>
+      <button class="ehx-fab" id="ehx-fab" data-act="scroll-top" aria-label="Scroll to top">${icon('arrowUp', 22)}</button>
       <div id="ehx-layer"></div>
       <div id="ehx-drawer-scrim" class="ehx-scrim"></div>
       <aside id="ehx-drawer" class="ehx-drawer" aria-label="Menu"></aside>`;
@@ -974,6 +1011,7 @@
     app.topbar = $('#ehx-topbar', app.root);
     app.main = $('#ehx-main', app.root);
     app.tabbar = $('#ehx-tabbar', app.root);
+    app.fab = $('#ehx-fab', app.root);
     app.layer = $('#ehx-layer', app.root);
     app.drawer = $('#ehx-drawer', app.root);
     app.scrim = $('#ehx-drawer-scrim', app.root);
@@ -995,5 +1033,6 @@
     window.addEventListener('scroll', throttleRaf(() => {
       if (!app.topbar) return;
       app.topbar.style.boxShadow = window.scrollY > 4 ? '0 6px 22px rgba(0,0,0,.22)' : 'none';
+      renderFab();
     }), { passive: true });
   }

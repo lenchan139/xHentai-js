@@ -31,6 +31,7 @@
     bookmark: '<path d="M6 3h12v18l-6-4-6 4Z"/>',
     sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>',
     arrowUp: '<path d="M12 19V5"/><path d="m6 11 6-6 6 6"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
     arrowDown: '<path d="M12 5v14"/><path d="m6 13 6 6 6-6"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/>',
     folder: '<path d="M3 6h6l2 2h10v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/>',

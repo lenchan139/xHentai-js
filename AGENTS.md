@@ -18,6 +18,7 @@ build.sh                  concatenates src/ + injects the version
 scripts/version.mjs       version injection helper
 src/00-header.js          userscript metadata + IIFE opener
 src/10-utils.js           helpers, storage, DEFAULT_SETTINGS, route classify
+src/15-idb.js             IndexedDB metadata store (favorites/galleries/tags)
 src/20-icons.js           inline SVG icon set
 src/30-css.js             the whole stylesheet (CSS variables, themes)
 src/40-http-parsers.js    fetch layer, cache, HTML parsers
@@ -71,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **88 parser / 82 UI** assertions, both suites must pass
+- Current expectation: **88 parser / 91 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -194,11 +195,31 @@ stale async renders after the user navigates again.
   (`FAVORITES_TTL`); a cache hit renders immediately and a weak hit is refetched.
 - Renders the first 30 cards, then appends 30-card chunks via an
   `IntersectionObserver` sentinel (`rootMargin: 900px`). After the first render,
-  `scheduleNextListPrefetch` warms `state.next` after 1.5s + idle, so scrolling
-  into the next page usually hits the in-memory cache.
+  `scheduleNextListPrefetch` warms `state.next` after 1.5s + idle, then parses
+  that page and warms the following page too (two pages ahead).
 - `canonicalListUrl` keeps `inline_set=dm_l` for the first page but drops it for
   `?next=`/`?prev=` cursor URLs; favorites rejects inline_set with a 302.
 - Cover URLs are preconnected per origin (deduped) before cards render.
+
+### Search, calendar and tag autocomplete (`src/90-pages.js`)
+
+- `searchBaseUrl()` captures the current list path before opening Search
+  (favorites/tag/uploader/category), strips search/cursor/seek params, and keeps
+  folder params such as `fav`. Popular falls back to `/` because the site ignores
+  `f_search` there.
+- `fetchTagSuggestions()` POSTs JSON `{method:'tagsuggest', text}` to
+  `api.e-hentai.org/api.php` (or `s.exhentai.org/api.php` on ExHentai), shows up
+  to 10 results, and falls back to tags stored in IndexedDB. Selecting one
+  inserts `namespace:"tag name"`.
+- `openCalendarSheet()` sets `seek=YYYY-MM-DD` on the current list/search URL.
+  E-Hentai accepts `seek` on favorites, home, search, tag and watched pages.
+
+### Scroll-to-top FAB (`src/60-app.js`)
+
+- `#ehx-fab` is fixed above the dock; visible after 480px of scroll.
+- `settings.scrollButton` is `left` (default), `right` or `off`; `renderFab()`
+  updates the side and visibility on navigation/scroll.
+- The update banner adds `.ehx-has-update` to raise the FAB.
 
 ### Detail rendering (`src/75-detail.js`)
 
@@ -285,9 +306,22 @@ preload       1..4
 ```
 
 `localStorage` keys include `ehx.settings`, `ehx.progress`, `ehx.history`,
-`ehx.searches`, `ehx.update` (update check cache/dismissal), `ehx.favorites`
-(persisted favorites data) and the page cache. Cookies stay in the browser's
-cookie store.
+`ehx.searches`, `ehx.update` (update check cache/dismissal) and the page cache.
+Favorites/gallery metadata live in IndexedDB `ehx`; legacy `ehx.favorites` is
+migrated there. Cookies stay in the browser's cookie store.
+
+### IndexedDB metadata (`src/15-idb.js`)
+
+- DB `ehx` (version 1) with stores `favorites` (key `url`), `galleries` (key
+  `gid`) and `tags` (key `full`).
+- Favorites entries are `{url, at, data}`; legacy `ehx.favorites` in localStorage
+  is migrated on first use. IDB failures fall back to localStorage.
+- `cacheGalleryMetadata()` stores title, tags, cover, pages, language, rating and
+  uploader for parsed galleries (up to 80 per page).
+- `localTagSuggestions()` scans the gallery store when the tag API is
+  unavailable.
+- `clearMetadataCaches()` clears all three stores; called by Clear page cache
+  and logout.
 
 ### Persistent cache (`src/40-http-parsers.js`, `src/70-list.js`)
 
@@ -414,6 +448,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
   the next-page fetch and cover requests.
 - `test/safari-indexeddb.mjs` — verifies IndexedDB open/write/read and reports
   `navigator.storage.estimate()` in Safari.
+- `test/safari-tagsuggest.mjs` — verifies the real `tagsuggest` API from a
+  Safari page (CORS, JSON response).
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.

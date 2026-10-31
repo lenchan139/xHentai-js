@@ -6,6 +6,7 @@ OUT="ehentai-app.user.js"
 cat \
   src/00-header.js \
   src/10-utils.js \
+  src/15-idb.js \
   src/20-icons.js \
   src/30-css.js \
   src/40-http-parsers.js \

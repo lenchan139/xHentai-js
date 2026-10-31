@@ -34,8 +34,59 @@
 
   // --- search -----------------------------------------------------------------
 
+  const TAGSUGGEST_URL = (typeof window !== 'undefined' && window.__EHX_TAGSUGGEST_URL__)
+    || (IS_EX ? 'https://s.exhentai.org/api.php' : 'https://api.e-hentai.org/api.php');
+
+  async function fetchTagSuggestions(text) {
+    const q = String(text || '').trim();
+    if (!q) return [];
+    try {
+      const res = await fetch(TAGSUGGEST_URL, {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'tagsuggest', text: q }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const tags = data && data.tags && typeof data.tags === 'object' ? Object.values(data.tags) : [];
+      return tags
+        .map((t) => ({ ns: t.ns || '', name: t.tn || '', full: `${t.ns}:${t.tn}` }))
+        .filter((t) => t.ns && t.name)
+        .slice(0, 10);
+    } catch {
+      return localTagSuggestions(q);
+    }
+  }
+
+  function openCalendarSheet(baseUrl) {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const s = openSheet({
+      title: 'Jump to date',
+      body: `<div class="ehx-field"><label class="ehx-label">Date</label>
+        <input class="ehx-input" id="ehx-calendar-date" type="date" value="${today}" min="2007-01-01" max="${today}"></div>
+        <p style="font-size:11.5px;color:var(--muted2);margin:0">The list starts at this date. Scroll down for newer galleries.</p>`,
+      footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="go">Go</button>`,
+    });
+    s.sheet.addEventListener('click', (e) => {
+      if (e.target.closest('[data-x="cancel"]')) { s.close(); return; }
+      if (!e.target.closest('[data-x="go"]')) return;
+      const input = s.sheet.querySelector('#ehx-calendar-date');
+      const date = input && input.value;
+      if (!date) { toast('Choose a date'); return; }
+      const u = new URL(baseUrl || currentUrl(), location.href);
+      for (const k of ['next', 'prev', 'p', 'seek']) u.searchParams.delete(k);
+      u.searchParams.set('seek', date);
+      s.close();
+      navigate(u.href, { restore: false });
+      setTimeout(() => window.scrollTo(0, 0), 0);
+    });
+  }
+
   function renderSearchPage() {
-    app.tab = 'search';
+    app.tab = 'more';
     renderTabbar();
     renderTopbar({
       left: iconBtn('back', 'back', 'Back'),
@@ -48,14 +99,28 @@
     const draftCats = parseInt(app.lastFcats || parseQuery(location.href).get('f_cats') || '0', 10);
     const included = new Set(CATEGORY_ORDER.filter((c) => !(draftCats & CAT_BITS[c])));
     const recent = recentSearches.list();
+    const baseUrl = app.searchBase || absUrl('/');
+    let basePath = '/';
+    try { basePath = new URL(baseUrl, location.href).pathname; } catch { /* noop */ }
+    const baseLabel = basePath === '/favorites.php' ? 'Favorites'
+      : basePath === '/watched' ? 'Watched'
+        : basePath.startsWith('/tag/') ? 'Tag'
+          : basePath.startsWith('/uploader/') ? 'Uploader'
+            : 'All galleries';
 
     app.main.innerHTML = `<div class="ehx-settings" style="padding-top:2px">
+      <div class="ehx-tagwrap" style="margin:2px 0 10px">
+        <span class="ehx-chip ehx-active">${icon('search', 12)} ${esc(baseLabel)}</span>
+        ${baseLabel !== 'All galleries' ? `<button class="ehx-chip" data-cmd="search-all">${icon('home', 12)} All galleries</button>` : ''}
+      </div>
       <div class="ehx-searchwrap" style="padding-left:0;padding-right:0">
         <div class="ehx-searchbox">
           ${icon('search', 18)}
           <input id="ehx-search-input" type="search" value="${esc(draftQ)}" placeholder="Title, artist, tag, parody…" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
+          <button class="ehx-iconbtn" data-act="calendar" aria-label="Jump to date">${icon('calendar', 18)}</button>
         </div>
       </div>
+      <div class="ehx-suggest" id="ehx-suggest" hidden></div>
 
       <div class="ehx-group-title">Categories</div>
       <div class="ehx-tagwrap" id="ehx-cats" style="gap:7px">
@@ -101,7 +166,12 @@
       if ($('#ehx-only-torrents')?.checked) params.set('f_sto', 'on');
       if ($('#ehx-expunged')?.checked) params.set('f_sh', 'on');
       recentSearches.add(q);
-      navigate('/?' + params.toString());
+      const u = new URL(baseUrl, location.href);
+      for (const k of ['f_search', 'f_cats', 'f_srdd', 'f_spf', 'f_spt', 'f_sto', 'f_sh', 'seek', 'next', 'prev', 'p']) {
+        u.searchParams.delete(k);
+      }
+      for (const [k, v] of params) u.searchParams.set(k, v);
+      navigate(u.href);
     };
 
     input.addEventListener('keydown', (e) => {
@@ -120,8 +190,56 @@
       const q = e.target.closest('[data-q]');
       if (q) { input.value = q.dataset.q; input.focus(); return; }
       const cmd = e.target.closest('[data-cmd="clear-searches"]');
-      if (cmd) { recentSearches.clear(); renderSearchPage(); }
+      if (cmd) { recentSearches.clear(); renderSearchPage(); return; }
+      if (e.target.closest('[data-cmd="search-all"]')) {
+        app.searchBase = absUrl('/');
+        renderSearchPage();
+      }
     };
+
+    const suggestBox = $('#ehx-suggest');
+    let suggestTimer = 0;
+    let suggestSeq = 0;
+    const hideSuggest = () => {
+      suggestSeq++;
+      if (suggestBox) { suggestBox.hidden = true; suggestBox.innerHTML = ''; }
+    };
+    const showSuggest = (list, operator) => {
+      if (!suggestBox) return;
+      if (!list.length) { hideSuggest(); return; }
+      suggestBox.hidden = false;
+      suggestBox.innerHTML = list.map((t) => `<button class="ehx-suggest-item" data-full="${esc(t.full)}"><b>${esc(t.ns)}</b>:${esc(t.name)}</button>`).join('');
+      suggestBox.onclick = (e) => {
+        const btn = e.target.closest('[data-full]');
+        if (!btn) return;
+        const full = btn.dataset.full || '';
+        const idx = full.indexOf(':');
+        const ns = idx > 0 ? full.slice(0, idx) : '';
+        const name = idx > 0 ? full.slice(idx + 1) : full;
+        const parts = input.value.split(/\s+/);
+        parts.pop();
+        parts.push(`${operator}${ns}:"${name}"`);
+        input.value = parts.join(' ') + ' ';
+        hideSuggest();
+        input.focus();
+      };
+    };
+    input.addEventListener('input', () => {
+      clearTimeout(suggestTimer);
+      const value = input.value;
+      const parts = value.split(/\s+/);
+      const last = parts[parts.length - 1] || '';
+      const operator = last[0] === '-' || last[0] === '~' ? last[0] : '';
+      const text = operator ? last.slice(1) : last;
+      if (text.length < 2) { hideSuggest(); return; }
+      const seq = ++suggestSeq;
+      suggestTimer = setTimeout(async () => {
+        const list = await fetchTagSuggestions(text);
+        if (seq !== suggestSeq || input.value !== value) return;
+        showSuggest(list, operator);
+      }, 260);
+    });
+    input.addEventListener('blur', () => setTimeout(hideSuggest, 180));
   }
 
   // --- settings ---------------------------------------------------------------
@@ -148,6 +266,7 @@
         ${settingRow('Grid columns', 'On phones', segHtml('columns', settings.columns, [{ value: 2, label: '2' }, { value: 3, label: '3' }]))}
         ${settingRow('Show tags on cards', 'Up to three tags', switchHtml('showTags', settings.showTags))}
         ${settingRow('Blur covers', 'Tap a card once to reveal', switchHtml('blurCovers', settings.blurCovers))}
+        ${settingRow('Scroll-to-top button', 'Side of the floating button', segHtml('scrollButton', settings.scrollButton, [{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }, { value: 'off', label: 'Off' }]))}
       </div>
 
       <div class="ehx-group-title">Reader</div>
@@ -208,6 +327,7 @@
         else if (v === 'false') v = false;
         else if (/^\d+$/.test(v)) v = parseInt(v, 10);
         saveSettings({ [key]: v });
+        if (key === 'scrollButton') renderFab();
         const y = window.scrollY;
         renderSettingsPage();
         window.scrollTo(0, y);
@@ -237,6 +357,7 @@
             applyTheme();
             renderTabbar();
             renderDrawer();
+            renderFab();
             renderSettingsPage();
             toast('Settings reset');
           });

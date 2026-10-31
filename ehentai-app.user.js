@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.1.2
+// @version      1.2.0
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.1.2';
+  const VERSION = '1.2.0';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -83,6 +83,7 @@
     readerResolution: 'auto', // auto (site-resampled) | original (fullimg)
     tapZones: true,
     preload: 2,
+    scrollButton: 'left', // left | right | off
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -250,7 +251,7 @@
     htmlCache.clear();
     pageUrlCache.clear();
     try { favoritesCache.clear(); } catch { /* not initialised yet */ }
-    store.del('favorites');
+    clearMetadataCaches();
     persistClear();
   }
 
@@ -310,6 +311,174 @@
     return 'home';
   }
   // ---------------------------------------------------------------------------
+  // IndexedDB metadata cache (favorites + gallery metadata)
+  // ---------------------------------------------------------------------------
+  // HTML responses stay in the Cache API; this store is for parsed metadata
+  // that benefits from structured storage and a larger quota than localStorage.
+  const IDB_NAME = 'ehx';
+  const IDB_VERSION = 1;
+  let idbPromise = null;
+  let idbMigration = null;
+
+  function idbSupported() {
+    return typeof indexedDB !== 'undefined';
+  }
+
+  function idbOpen() {
+    if (idbPromise) return idbPromise;
+    idbPromise = new Promise((resolve, reject) => {
+      if (!idbSupported()) { reject(new Error('IndexedDB unavailable')); return; }
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('favorites')) db.createObjectStore('favorites', { keyPath: 'url' });
+        if (!db.objectStoreNames.contains('galleries')) db.createObjectStore('galleries', { keyPath: 'gid' });
+        if (!db.objectStoreNames.contains('tags')) db.createObjectStore('tags', { keyPath: 'full' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+    }).catch((e) => {
+      idbPromise = null;
+      throw e;
+    });
+    return idbPromise;
+  }
+
+  async function idbGet(storeName, key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbPut(storeName, value) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).put(value);
+      tx.oncomplete = () => resolve(value);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('IndexedDB aborted'));
+    });
+  }
+
+  async function idbDelete(storeName, key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function idbClear(storeName) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function idbAll(storeName) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbMigrate() {
+    try {
+      const legacy = store.get('favorites', null);
+      if (legacy && legacy.url && legacy.data) {
+        await idbPut('favorites', legacy);
+        store.del('favorites');
+      }
+    } catch { /* private mode / no IDB */ }
+  }
+
+  function idbEnsure() {
+    if (!idbMigration) idbMigration = idbOpen().then(idbMigrate).catch(() => null);
+    return idbMigration;
+  }
+
+  async function persistedFavoritesEntry(url) {
+    await idbEnsure();
+    const hit = await idbGet('favorites', url).catch(() => null);
+    if (hit) return hit;
+    const legacy = store.get('favorites', null);
+    if (legacy && legacy.url === url && legacy.data) {
+      idbPut('favorites', legacy).catch(() => { /* keep legacy */ });
+      store.del('favorites');
+      return legacy;
+    }
+    return null;
+  }
+
+  function persistFavoritesEntry(url, data) {
+    if (!url || !data || !Array.isArray(data.items) || data.loggedOut || data.sad) return;
+    const entry = { url, at: Date.now(), data };
+    idbPut('favorites', entry).catch(() => {
+      try { store.set('favorites', entry); } catch { /* quota */ }
+    });
+  }
+
+  function cacheGalleryMetadata(items) {
+    if (!Array.isArray(items) || !items.length) return;
+    const now = Date.now();
+    for (const g of items.slice(0, 80)) {
+      if (!g || !g.gid) continue;
+      const rec = {
+        gid: String(g.gid),
+        title: g.title || '',
+        category: g.category || '',
+        cover: g.cover || '',
+        pages: g.pages || 0,
+        language: g.language || '',
+        rating: g.rating || 0,
+        uploader: g.uploader || '',
+        tags: (g.tags || []).map((t) => ({ ns: t.ns || '', name: t.name || '', watched: !!t.watched })),
+        updatedAt: now,
+      };
+      idbPut('galleries', rec).catch(() => { /* noop */ });
+    }
+  }
+
+  async function localTagSuggestions(keyword, limit = 10) {
+    const k = String(keyword || '').trim().toLowerCase();
+    if (!k) return [];
+    const all = await idbAll('galleries').catch(() => []);
+    const seen = new Set();
+    const out = [];
+    for (const g of all) {
+      for (const t of g.tags || []) {
+        const full = `${t.ns}:${t.name}`;
+        if (seen.has(full)) continue;
+        if (full.toLowerCase().includes(k) || String(t.name).toLowerCase().includes(k)) {
+          seen.add(full);
+          out.push({ ns: t.ns, name: t.name, full });
+          if (out.length >= limit) return out;
+        }
+      }
+    }
+    return out;
+  }
+
+  function clearMetadataCaches() {
+    store.del('favorites');
+    idbClear('favorites').catch(() => { /* noop */ });
+    idbClear('galleries').catch(() => { /* noop */ });
+    idbClear('tags').catch(() => { /* noop */ });
+  }
+  // ---------------------------------------------------------------------------
   // Inline SVG icon set (Lucide-style, 24x24, currentColor)
   // ---------------------------------------------------------------------------
 
@@ -342,6 +511,7 @@
     bookmark: '<path d="M6 3h12v18l-6-4-6 4Z"/>',
     sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>',
     arrowUp: '<path d="M12 19V5"/><path d="m6 11 6-6 6 6"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
     arrowDown: '<path d="M12 5v14"/><path d="m6 13 6 6 6-6"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/>',
     folder: '<path d="M3 6h6l2 2h10v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/>',
@@ -646,6 +816,17 @@
   .ehx-tab.ehx-active{color:var(--accent)}
   .ehx-tab:active{background:var(--card2)}
   .ehx-tab.ehx-active .ehx-i{filter:drop-shadow(0 0 8px rgba(208,188,255,.45))}
+  .ehx-fab{
+    position:fixed;z-index:60;bottom:calc(var(--tabh) + var(--sab) + 16px);
+    width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+    background:var(--accent);color:var(--accent-ink);box-shadow:0 8px 24px rgba(0,0,0,.35);
+    opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .2s,transform .2s;
+  }
+  .ehx-fab-left{left:14px}
+  .ehx-fab-right{right:14px}
+  .ehx-fab.ehx-show{opacity:1;transform:none;pointer-events:auto}
+  .ehx-fab.ehx-hide{display:none}
+  .ehx-has-update .ehx-fab{bottom:calc(var(--tabh) + var(--sab) + 86px)}
 
   /* ---------- Drawer ---------- */
   .ehx-scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;opacity:0;pointer-events:none;transition:opacity .2s ease;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
@@ -913,6 +1094,11 @@
   .ehx-searchbox .ehx-i{color:var(--muted2)}
   .ehx-searchbox input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:14px;color:var(--text)}
   .ehx-searchbox input::placeholder{color:var(--muted2)}
+  .ehx-suggest{margin:6px 0 0;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;max-height:260px;overflow-y:auto}
+  .ehx-suggest-item{display:block;width:100%;text-align:left;padding:9px 12px;font-size:12.5px;color:var(--text);border-bottom:1px solid var(--line)}
+  .ehx-suggest-item:last-child{border-bottom:0}
+  .ehx-suggest-item:active{background:var(--card2)}
+  .ehx-suggest-item b{color:var(--accent);font-weight:800}
 
   /* settings */
   .ehx-settings{padding:4px calc(12px + var(--sar)) 30px calc(12px + var(--sal))}
@@ -1846,9 +2032,36 @@
       }
       return `<a class="ehx-tab${active ? ' ehx-active' : ''}" href="${t.href}" aria-label="${t.label}">${inner}</a>`;
     }).join('');
+    renderFab();
+  }
+
+  function renderFab() {
+    if (!app.fab) return;
+    const mode = settings.scrollButton || 'left';
+    app.fab.style.display = mode === 'off' ? 'none' : '';
+    app.fab.classList.toggle('ehx-fab-left', mode !== 'right');
+    app.fab.classList.toggle('ehx-fab-right', mode === 'right');
+    const hidden = app.tab === 'none' || (app.route && app.route.name === 'reader');
+    app.fab.classList.toggle('ehx-hide', hidden);
+    app.fab.classList.toggle('ehx-show', !hidden && window.scrollY > 480);
   }
 
   // --- navigation -------------------------------------------------------------
+
+  function searchBaseUrl() {
+    const route = app.route;
+    if (!route || route.name !== 'list') return absUrl('/');
+    try {
+      const u = new URL(route.url || currentUrl(), location.href);
+      for (const k of ['f_search', 'f_cats', 'f_srdd', 'f_spf', 'f_spt', 'f_sto', 'f_sh', 'seek', 'next', 'prev', 'p']) {
+        u.searchParams.delete(k);
+      }
+      if (route.kind === 'popular') return absUrl('/');
+      return u.href;
+    } catch {
+      return absUrl('/');
+    }
+  }
 
   async function navigate(url, opts = {}) {
     const abs = absUrl(url);
@@ -2208,6 +2421,7 @@
   function hideUpdateBanner() {
     const el = document.getElementById('ehx-update');
     if (el) el.remove();
+    if (app.root) app.root.classList.remove('ehx-has-update');
   }
 
   function showUpdateBanner(latest, force = false) {
@@ -2221,6 +2435,7 @@
       el.id = 'ehx-update';
       el.className = 'ehx-update';
       app.root.appendChild(el);
+      app.root.classList.add('ehx-has-update');
     }
     el.innerHTML = `
       <div class="ehx-update-msg">
@@ -2236,6 +2451,7 @@
       });
       store.set('update', next);
       el.remove();
+      if (app.root) app.root.classList.remove('ehx-has-update');
     });
   }
 
@@ -2388,8 +2604,8 @@
     confirmSheet('Log out?', 'This opens the forum logout page. Local reading history stays on this device.', { ok: 'Log out', danger: true })
       .then((yes) => {
         if (!yes) return;
-        store.del('favorites');
         try { favoritesCache.clear(); } catch { /* noop */ }
+        clearMetadataCaches();
         persistClear();
         openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
       });
@@ -2589,6 +2805,7 @@
       const r = classify(abs);
       if (r.name !== 'external') {
         e.preventDefault();
+        if (r.name === 'search') app.searchBase = searchBaseUrl();
         // Hand the list item to the detail page so its hero can paint before
         // the (often slow) gallery HTML arrives.
         let gallery = null;
@@ -2649,7 +2866,12 @@
     onAction('close-drawer', () => closeDrawer());
     onAction('close-sheet', () => { const s = app.sheets[app.sheets.length - 1]; if (s) { s.scrim.remove(); s.sheet.remove(); app.sheets.pop(); document.body.style.overflow = app.sheets.length ? 'hidden' : ''; } });
     onAction('home', () => navigate('/'));
-    onAction('search', () => navigate('/#ehx-search'));
+    onAction('scroll-top', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    onAction('search', () => { app.searchBase = searchBaseUrl(); navigate('/#ehx-search'); });
+    onAction('calendar', () => {
+      const base = app.route && app.route.name === 'search' ? (app.searchBase || absUrl('/')) : currentUrl();
+      openCalendarSheet(base);
+    });
     onAction('settings', () => navigate('/#ehx-settings'));
     onAction('history', () => navigate('/#ehx-history'));
     onAction('login', () => openLoginSheet());
@@ -2715,6 +2937,7 @@
       <header class="ehx-topbar" id="ehx-topbar"></header>
       <main class="ehx-main" id="ehx-main"></main>
       <nav class="ehx-tabbar" id="ehx-tabbar" aria-label="Primary"></nav>
+      <button class="ehx-fab" id="ehx-fab" data-act="scroll-top" aria-label="Scroll to top">${icon('arrowUp', 22)}</button>
       <div id="ehx-layer"></div>
       <div id="ehx-drawer-scrim" class="ehx-scrim"></div>
       <aside id="ehx-drawer" class="ehx-drawer" aria-label="Menu"></aside>`;
@@ -2723,6 +2946,7 @@
     app.topbar = $('#ehx-topbar', app.root);
     app.main = $('#ehx-main', app.root);
     app.tabbar = $('#ehx-tabbar', app.root);
+    app.fab = $('#ehx-fab', app.root);
     app.layer = $('#ehx-layer', app.root);
     app.drawer = $('#ehx-drawer', app.root);
     app.scrim = $('#ehx-drawer-scrim', app.root);
@@ -2744,6 +2968,7 @@
     window.addEventListener('scroll', throttleRaf(() => {
       if (!app.topbar) return;
       app.topbar.style.boxShadow = window.scrollY > 4 ? '0 6px 22px rgba(0,0,0,.22)' : 'none';
+      renderFab();
     }), { passive: true });
   }
   // ---------------------------------------------------------------------------
@@ -2758,14 +2983,12 @@
   const favRefreshing = new Set();
 
   function persistFavorites(url, data) {
-    if (!url || !data || !Array.isArray(data.items) || data.loggedOut || data.sad) return;
-    try { store.set(FAV_STORE, { url, at: Date.now(), data }); } catch { /* quota */ }
+    persistFavoritesEntry(url, data);
   }
 
-  function persistedFavorites(url) {
-    const p = store.get(FAV_STORE, null);
-    if (!p || p.url !== url || !p.data || !Array.isArray(p.data.items)) return null;
-    return p;
+  async function persistedFavorites(url) {
+    const entry = await persistedFavoritesEntry(url);
+    return entry && entry.data && Array.isArray(entry.data.items) ? entry : null;
   }
 
   function backgroundFavoritesRefresh(url) {
@@ -2808,7 +3031,20 @@
       if (seq !== app.navSeq || !app.listState || app.listState.url !== state.url) return;
       const run = () => {
         if (seq !== app.navSeq) return;
-        fetchDoc(canonicalListUrl(state.next), { ttl: 120000 }).catch(() => { /* prefetch */ });
+        const firstUrl = canonicalListUrl(state.next);
+        fetchDoc(firstUrl, { ttl: 120000 })
+          .then((rec) => {
+            if (seq !== app.navSeq) return;
+            const more = parseList(rec.doc, rec.url);
+            const secondUrl = more.next ? canonicalListUrl(more.next) : '';
+            if (!secondUrl || secondUrl === firstUrl) return;
+            const fetchSecond = () => {
+              if (seq === app.navSeq) fetchDoc(secondUrl, { ttl: 120000 }).catch(() => { /* prefetch */ });
+            };
+            if ('requestIdleCallback' in window) requestIdleCallback(fetchSecond, { timeout: 2500 });
+            else fetchSecond();
+          })
+          .catch(() => { /* prefetch */ });
       };
       if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 2500 });
       else run();
@@ -2836,10 +3072,10 @@
     }, 5000);
   }
 
-  function preloadFavorites() {
+  async function preloadFavorites() {
     if (app.route && (app.route.name === 'reader' || app.route.kind === 'favorites.php')) return;
     const url = canonicalListUrl('/favorites.php');
-    const persisted = persistedFavorites(url);
+    const persisted = await persistedFavorites(url);
     if (persisted && !favoritesCache.has(url)) favoritesCache.set(url, { at: persisted.at, data: persisted.data });
     const hit = favoritesCache.get(url);
     const weakHit = hit && hit.data && hit.data.items && hit.data.items.length && hit.data.items.every((g) => !g.cover);
@@ -2858,15 +3094,13 @@
   function canonicalListUrl(url) {
     try {
       const u = new URL(url, location.href);
-      // Cursor pages (`?next=`/`?prev=`) reject inline_set with a 302 on
-      // favorites; the parser handles whatever layout the site returns.
-      if (u.searchParams.has('next') || u.searchParams.has('prev')) {
-        u.searchParams.delete('inline_set');
-      } else {
-        // Compact is the layout the parser and tests target, and unlike
-        // `dm_e` it does not rewrite the visitor's site display-mode cookie.
-        u.searchParams.set('inline_set', 'dm_l');
-      }
+      // Favorites/watched and cursor pages reject inline_set with a 302; the
+      // parser handles whatever layout the site returns. Other lists use
+      // Compact, which unlike dm_e does not rewrite the display-mode cookie.
+      const noInline = u.searchParams.has('next') || u.searchParams.has('prev')
+        || /^\/(favorites\.php|watched)(\/|$)/.test(u.pathname);
+      if (noInline) u.searchParams.delete('inline_set');
+      else u.searchParams.set('inline_set', 'dm_l');
       return u.href;
     } catch {
       return url;
@@ -2946,7 +3180,7 @@
         ? (isTab ? '' : iconBtn('back', 'back', 'Back'))
         : iconBtn('back', 'back', 'Back'),
       title,
-      right: `${iconBtn('search', 'search', 'Search')}${iconBtn('refresh', 'refresh', 'Refresh')}${iconBtn('drawer', 'menu', 'Menu')}`,
+      right: `${iconBtn('calendar', 'calendar', 'Jump to date')}${iconBtn('search', 'search', 'Search')}${iconBtn('refresh', 'refresh', 'Refresh')}${iconBtn('drawer', 'menu', 'Menu')}`,
     });
     document.title = title + ' · ' + SITE_NAME;
 
@@ -2966,7 +3200,7 @@
     if (!data && isFav && !opts.force) {
       let cachedFav = favoritesCache.get(favUrl);
       if (!cachedFav) {
-        const persisted = persistedFavorites(favUrl);
+        const persisted = await persistedFavorites(favUrl);
         if (persisted) {
           cachedFav = { at: persisted.at, data: persisted.data };
           favoritesCache.set(favUrl, cachedFav);
@@ -3000,6 +3234,7 @@
       clearTimeout(slowTimer);
       if (opts.seq && opts.seq !== app.navSeq) return;
       data = parseList(rec.doc, rec.url);
+      cacheGalleryMetadata(data.items);
       fromCache = false;
     }
 
@@ -3019,8 +3254,8 @@
       favoritesCache.set(favUrl, { at: Date.now(), data });
       persistFavorites(favUrl, data);
     }
-
     const items = data.items || [];
+    cacheGalleryMetadata(items);
     for (const g of items.slice(0, 16)) {
       if (!g.cover) continue;
       try { preconnectOrigin(new URL(g.cover).origin); } catch { /* noop */ }
@@ -3108,6 +3343,7 @@
     onAction('edit-search', () => {
       app.lastQuery = q;
       app.lastFcats = parseQuery(url).get('f_cats') || '0';
+      app.searchBase = searchBaseUrl();
       navigate('/#ehx-search');
     });
 
@@ -3358,6 +3594,7 @@
 
     if (typeof data.apiuid === 'number' && data.apiuid > 0) { app.loggedIn = true; renderDrawer(); }
 
+    cacheGalleryMetadata([data]);
     const cover = data.cover || '';
     if (cover) { try { preconnectOrigin(new URL(cover).origin); } catch { /* noop */ } }
     for (const t of (data.thumbs || []).slice(0, 3)) {
@@ -4718,8 +4955,59 @@
 
   // --- search -----------------------------------------------------------------
 
+  const TAGSUGGEST_URL = (typeof window !== 'undefined' && window.__EHX_TAGSUGGEST_URL__)
+    || (IS_EX ? 'https://s.exhentai.org/api.php' : 'https://api.e-hentai.org/api.php');
+
+  async function fetchTagSuggestions(text) {
+    const q = String(text || '').trim();
+    if (!q) return [];
+    try {
+      const res = await fetch(TAGSUGGEST_URL, {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'tagsuggest', text: q }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const tags = data && data.tags && typeof data.tags === 'object' ? Object.values(data.tags) : [];
+      return tags
+        .map((t) => ({ ns: t.ns || '', name: t.tn || '', full: `${t.ns}:${t.tn}` }))
+        .filter((t) => t.ns && t.name)
+        .slice(0, 10);
+    } catch {
+      return localTagSuggestions(q);
+    }
+  }
+
+  function openCalendarSheet(baseUrl) {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const s = openSheet({
+      title: 'Jump to date',
+      body: `<div class="ehx-field"><label class="ehx-label">Date</label>
+        <input class="ehx-input" id="ehx-calendar-date" type="date" value="${today}" min="2007-01-01" max="${today}"></div>
+        <p style="font-size:11.5px;color:var(--muted2);margin:0">The list starts at this date. Scroll down for newer galleries.</p>`,
+      footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="go">Go</button>`,
+    });
+    s.sheet.addEventListener('click', (e) => {
+      if (e.target.closest('[data-x="cancel"]')) { s.close(); return; }
+      if (!e.target.closest('[data-x="go"]')) return;
+      const input = s.sheet.querySelector('#ehx-calendar-date');
+      const date = input && input.value;
+      if (!date) { toast('Choose a date'); return; }
+      const u = new URL(baseUrl || currentUrl(), location.href);
+      for (const k of ['next', 'prev', 'p', 'seek']) u.searchParams.delete(k);
+      u.searchParams.set('seek', date);
+      s.close();
+      navigate(u.href, { restore: false });
+      setTimeout(() => window.scrollTo(0, 0), 0);
+    });
+  }
+
   function renderSearchPage() {
-    app.tab = 'search';
+    app.tab = 'more';
     renderTabbar();
     renderTopbar({
       left: iconBtn('back', 'back', 'Back'),
@@ -4732,14 +5020,28 @@
     const draftCats = parseInt(app.lastFcats || parseQuery(location.href).get('f_cats') || '0', 10);
     const included = new Set(CATEGORY_ORDER.filter((c) => !(draftCats & CAT_BITS[c])));
     const recent = recentSearches.list();
+    const baseUrl = app.searchBase || absUrl('/');
+    let basePath = '/';
+    try { basePath = new URL(baseUrl, location.href).pathname; } catch { /* noop */ }
+    const baseLabel = basePath === '/favorites.php' ? 'Favorites'
+      : basePath === '/watched' ? 'Watched'
+        : basePath.startsWith('/tag/') ? 'Tag'
+          : basePath.startsWith('/uploader/') ? 'Uploader'
+            : 'All galleries';
 
     app.main.innerHTML = `<div class="ehx-settings" style="padding-top:2px">
+      <div class="ehx-tagwrap" style="margin:2px 0 10px">
+        <span class="ehx-chip ehx-active">${icon('search', 12)} ${esc(baseLabel)}</span>
+        ${baseLabel !== 'All galleries' ? `<button class="ehx-chip" data-cmd="search-all">${icon('home', 12)} All galleries</button>` : ''}
+      </div>
       <div class="ehx-searchwrap" style="padding-left:0;padding-right:0">
         <div class="ehx-searchbox">
           ${icon('search', 18)}
           <input id="ehx-search-input" type="search" value="${esc(draftQ)}" placeholder="Title, artist, tag, parody…" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
+          <button class="ehx-iconbtn" data-act="calendar" aria-label="Jump to date">${icon('calendar', 18)}</button>
         </div>
       </div>
+      <div class="ehx-suggest" id="ehx-suggest" hidden></div>
 
       <div class="ehx-group-title">Categories</div>
       <div class="ehx-tagwrap" id="ehx-cats" style="gap:7px">
@@ -4785,7 +5087,12 @@
       if ($('#ehx-only-torrents')?.checked) params.set('f_sto', 'on');
       if ($('#ehx-expunged')?.checked) params.set('f_sh', 'on');
       recentSearches.add(q);
-      navigate('/?' + params.toString());
+      const u = new URL(baseUrl, location.href);
+      for (const k of ['f_search', 'f_cats', 'f_srdd', 'f_spf', 'f_spt', 'f_sto', 'f_sh', 'seek', 'next', 'prev', 'p']) {
+        u.searchParams.delete(k);
+      }
+      for (const [k, v] of params) u.searchParams.set(k, v);
+      navigate(u.href);
     };
 
     input.addEventListener('keydown', (e) => {
@@ -4804,8 +5111,56 @@
       const q = e.target.closest('[data-q]');
       if (q) { input.value = q.dataset.q; input.focus(); return; }
       const cmd = e.target.closest('[data-cmd="clear-searches"]');
-      if (cmd) { recentSearches.clear(); renderSearchPage(); }
+      if (cmd) { recentSearches.clear(); renderSearchPage(); return; }
+      if (e.target.closest('[data-cmd="search-all"]')) {
+        app.searchBase = absUrl('/');
+        renderSearchPage();
+      }
     };
+
+    const suggestBox = $('#ehx-suggest');
+    let suggestTimer = 0;
+    let suggestSeq = 0;
+    const hideSuggest = () => {
+      suggestSeq++;
+      if (suggestBox) { suggestBox.hidden = true; suggestBox.innerHTML = ''; }
+    };
+    const showSuggest = (list, operator) => {
+      if (!suggestBox) return;
+      if (!list.length) { hideSuggest(); return; }
+      suggestBox.hidden = false;
+      suggestBox.innerHTML = list.map((t) => `<button class="ehx-suggest-item" data-full="${esc(t.full)}"><b>${esc(t.ns)}</b>:${esc(t.name)}</button>`).join('');
+      suggestBox.onclick = (e) => {
+        const btn = e.target.closest('[data-full]');
+        if (!btn) return;
+        const full = btn.dataset.full || '';
+        const idx = full.indexOf(':');
+        const ns = idx > 0 ? full.slice(0, idx) : '';
+        const name = idx > 0 ? full.slice(idx + 1) : full;
+        const parts = input.value.split(/\s+/);
+        parts.pop();
+        parts.push(`${operator}${ns}:"${name}"`);
+        input.value = parts.join(' ') + ' ';
+        hideSuggest();
+        input.focus();
+      };
+    };
+    input.addEventListener('input', () => {
+      clearTimeout(suggestTimer);
+      const value = input.value;
+      const parts = value.split(/\s+/);
+      const last = parts[parts.length - 1] || '';
+      const operator = last[0] === '-' || last[0] === '~' ? last[0] : '';
+      const text = operator ? last.slice(1) : last;
+      if (text.length < 2) { hideSuggest(); return; }
+      const seq = ++suggestSeq;
+      suggestTimer = setTimeout(async () => {
+        const list = await fetchTagSuggestions(text);
+        if (seq !== suggestSeq || input.value !== value) return;
+        showSuggest(list, operator);
+      }, 260);
+    });
+    input.addEventListener('blur', () => setTimeout(hideSuggest, 180));
   }
 
   // --- settings ---------------------------------------------------------------
@@ -4832,6 +5187,7 @@
         ${settingRow('Grid columns', 'On phones', segHtml('columns', settings.columns, [{ value: 2, label: '2' }, { value: 3, label: '3' }]))}
         ${settingRow('Show tags on cards', 'Up to three tags', switchHtml('showTags', settings.showTags))}
         ${settingRow('Blur covers', 'Tap a card once to reveal', switchHtml('blurCovers', settings.blurCovers))}
+        ${settingRow('Scroll-to-top button', 'Side of the floating button', segHtml('scrollButton', settings.scrollButton, [{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }, { value: 'off', label: 'Off' }]))}
       </div>
 
       <div class="ehx-group-title">Reader</div>
@@ -4892,6 +5248,7 @@
         else if (v === 'false') v = false;
         else if (/^\d+$/.test(v)) v = parseInt(v, 10);
         saveSettings({ [key]: v });
+        if (key === 'scrollButton') renderFab();
         const y = window.scrollY;
         renderSettingsPage();
         window.scrollTo(0, y);
@@ -4921,6 +5278,7 @@
             applyTheme();
             renderTabbar();
             renderDrawer();
+            renderFab();
             renderSettingsPage();
             toast('Settings reset');
           });
@@ -5119,7 +5477,7 @@
 
       // Debug handle (harmless, useful in Safari Web Inspector).
       try {
-        window.__EHENTAI_APP__ = { version: VERSION, settings, app, parser: { parseList, parseDetail, parseReader }, navigate, preloadFavorites, checkForUpdate };
+        window.__EHENTAI_APP__ = { version: VERSION, settings, app, parser: { parseList, parseDetail, parseReader }, navigate, preloadFavorites, checkForUpdate, clearCaches: clearRuntimeCaches };
       } catch { /* noop */ }
     } catch (err) {
       console.error('[EHX boot]', err);

@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.2/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.1.2%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.2/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.0%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -41,16 +41,23 @@ plain JavaScript running in your own browser.
 - **Reader** — vertical continuous or paged horizontal, width/contain fit,
   1–4 pages of preload, tap zones, auto-hiding chrome, range slider, jump-to-page,
   retry, original page, and a **Resampled / Original** image-resolution switch.
-- **Search** — E-Hentai syntax, all 10 categories, rating, page range, torrents,
-  expunged, recent searches.
+- **Search** — E-Hentai syntax, tag-name autocomplete from the site’s
+  `tagsuggest` API, all 10 categories, rating, page range, torrents, expunged,
+  recent searches. Searches stay in the current tab (e.g. Favorites searches only
+  Favorites).
+- **Calendar jump** — next to the search field and in list top bars, pick a date
+  and jump to `?seek=YYYY-MM-DD`; scroll down for newer galleries.
+- **Scroll-to-top button** — a floating button after you scroll; left by default,
+  switchable to right or off in Settings.
 - **Library** — local reading history, resume positions, clear history/progress/
   cache.
 - **Login** — password or cookie login. Favorites and ratings work in-app; other
   account actions open the original site.
 - **Fast repeat loads** — gallery HTML is stored in the browser Cache API and
   shown immediately on repeat visits, then refreshed in the background. Favorites
-  are persisted too. The next list page is prefetched after the first page renders,
-  so scrolling into more items does not wait for a fresh request.
+  and gallery metadata are stored in IndexedDB. The next two list pages are
+  prefetched after the first page renders, so scrolling into more items does not
+  wait for a fresh request.
 - **Reader API** — after the first page, pages load through E-Hentai’s `showpage`
   JSON API instead of fetching a full `/s/` HTML page.
 - **Update notifier** — checks the `main` branch in the background and shows an
@@ -60,15 +67,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.1.2 (cache-free):**
+**Direct install snapshot — v1.2.0 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.2/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.1.2](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.2/ehentai-app.user.js)
+- [Install v1.2.0](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -86,7 +93,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.1.2 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.2/ehentai-app.user.js)
+3. Open the [v1.2.0 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -97,7 +104,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.1.2 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.1.2/ehentai-app.user.js)
+   On My iPhone), then save the [v1.2.0 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 

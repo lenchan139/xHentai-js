@@ -231,6 +231,7 @@
 
     if (typeof data.apiuid === 'number' && data.apiuid > 0) { app.loggedIn = true; renderDrawer(); }
 
+    cacheGalleryMetadata([data]);
     const cover = data.cover || '';
     if (cover) { try { preconnectOrigin(new URL(cover).origin); } catch { /* noop */ } }
     for (const t of (data.thumbs || []).slice(0, 3)) {

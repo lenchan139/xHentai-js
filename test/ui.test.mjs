@@ -70,6 +70,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (u.pathname === '/__resetfav') { favRequests = 0; res.writeHead(204); res.end(); return; }
+    if (u.pathname === '/__tagsuggest' && req.method === 'POST') {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ tags: { 1: { ns: 'female', tn: 'teacher' }, 2: { ns: 'male', tn: 'teacher' } } }));
+      return;
+    }
     if (u.pathname === '/__showpage' && req.method === 'POST') {
       let body = '';
       for await (const chunk of req) body += chunk;
@@ -175,6 +180,7 @@ try {
   await page.evaluateOnNewDocument(`
     window.__EHX_UPDATE_META_URL__ = ${JSON.stringify(BASE + '/__update')};
     window.__EHX_UPDATE_INSTALL_URL__ = ${JSON.stringify(BASE + '/__update')};
+    window.__EHX_TAGSUGGEST_URL__ = ${JSON.stringify(BASE + '/__tagsuggest')};
   `);
   await page.evaluateOnNewDocument(userscript);
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
@@ -221,6 +227,15 @@ try {
   ok('list card shows a language label', /^PT \d+P$/.test(listDims.lang), listDims.lang);
   await page.click('[data-act="toggle-layout"]');
   await page.waitForSelector('.ehx-grid:not(.ehx-listmode)', { timeout: 6000 });
+
+  console.log('\nScroll-to-top FAB');
+  await page.evaluate(() => window.scrollTo(0, 1600));
+  await page.waitForSelector('#ehx-fab.ehx-show', { timeout: 4000 });
+  ok('FAB appears on scroll', true);
+  ok('FAB defaults to the left', await page.$eval('#ehx-fab', (el) => el.classList.contains('ehx-fab-left')));
+  await page.evaluate(() => document.querySelector('#ehx-fab').click());
+  await page.waitForFunction(() => window.scrollY < 80, { timeout: 4000 });
+  ok('FAB scrolls to top', true);
 
   console.log('\nUpdate notifier');
   await page.waitForSelector('#ehx-update', { timeout: 9000 });
@@ -338,11 +353,29 @@ try {
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
   ok('search results rendered', await count('.ehx-card') === 25, String(await count('.ehx-card')));
   ok('search URL has f_search', (await page.evaluate(() => location.search)).includes('f_search=blue'));
+  ok('search stays in the current tab', (await page.evaluate(() => location.pathname)) === '/doujinshi', await page.evaluate(() => location.pathname));
 
   console.log('\nSearch edit prefill');
   await page.click('[data-act="edit-search"]');
   await page.waitForSelector('#ehx-search-input', { timeout: 6000 });
   ok('edit pre-fills query', (await page.$eval('#ehx-search-input', (el) => el.value)) === 'blue archive');
+
+  console.log('\nTag autocomplete');
+  await page.type('#ehx-search-input', ' teacher');
+  await page.waitForSelector('.ehx-suggest-item', { timeout: 5000 });
+  ok('tag suggestions shown', await count('.ehx-suggest-item') >= 1, String(await count('.ehx-suggest-item')));
+  await page.evaluate(() => document.querySelector('.ehx-suggest-item').click());
+  const suggested = await page.$eval('#ehx-search-input', (el) => el.value);
+  ok('suggestion inserted as namespace:quoted', /female:"teacher"/.test(suggested), suggested);
+
+  console.log('\nCalendar jump');
+  await page.evaluate(() => document.querySelector('[data-act="calendar"]').click());
+  await page.waitForSelector('#ehx-calendar-date', { timeout: 4000 });
+  await page.$eval('#ehx-calendar-date', (el) => { el.value = '2026-10-01'; });
+  await page.evaluate(() => document.querySelector('[data-x="go"]').click());
+  await page.waitForFunction(() => location.search.includes('seek=2026-10-01'), { timeout: 6000 });
+  ok('calendar jumps to the seek date', true);
+  ok('calendar preserves the current tab', (await page.evaluate(() => location.pathname)) === '/doujinshi', await page.evaluate(() => location.pathname));
 
   console.log('\nSettings');
   await page.evaluate(() => document.querySelector('[data-act="drawer"]').click());
@@ -353,6 +386,9 @@ try {
   await new Promise((r) => setTimeout(r, 400));
   ok('settings page rendered', await count('[data-set="theme"]') === 3);
   ok('reader resolution setting present', await count('[data-set="readerResolution"]') === 2);
+  await page.click('[data-set="scrollButton"][data-value="right"]');
+  ok('FAB can move to the right', await page.$eval('#ehx-fab', (el) => el.classList.contains('ehx-fab-right')));
+  await page.click('[data-set="scrollButton"][data-value="left"]');
   await page.click('[data-set="theme"][data-value="light"]');
   await page.waitForFunction(() => document.documentElement.dataset.ehxTheme === 'light', { timeout: 4000 });
   ok('light theme applied', (await page.evaluate(() => document.documentElement.dataset.ehxTheme)) === 'light');
@@ -428,7 +464,8 @@ try {
   ok('favorite sheet closed after save', await count('.ehx-sheet.ehx-open') === 0);
 
   console.log('\nFavorites warm cache');
-  await page.evaluate(() => localStorage.removeItem('ehx.favorites'));
+  await page.evaluate(() => window.__EHENTAI_APP__.clearCaches());
+  await new Promise((r) => setTimeout(r, 500));
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
   await page.evaluate(() => fetch('/__resetfav'));
