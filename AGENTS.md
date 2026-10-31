@@ -412,6 +412,8 @@ Harnesses (each spawns its own `safaridriver --mcp` stdio client):
   render, cover requests, favorites warm-up and update-check timing.
 - `test/safari-favorites-scroll.mjs` — scrolls a live Favorites page and records
   the next-page fetch and cover requests.
+- `test/safari-indexeddb.mjs` — verifies IndexedDB open/write/read and reports
+  `navigator.storage.estimate()` in Safari.
 - `test/safari-ex-thumbs.mjs` — opens an ExHentai gallery, pages the detail
   thumbnails through the app, and checks when the preview sheet is painted and
   requested.
