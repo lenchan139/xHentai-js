@@ -9,6 +9,9 @@ plain JavaScript running in your own browser.
 > requests go to the real site with your own session. It does not bypass age gates,
 > GP costs, or site rules.
 
+**Repository:** <https://github.com/lenchan139/xHentai-js>  
+**Issues:** <https://github.com/lenchan139/xHentai-js/issues>
+
 [![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.12/ehentai-app.user.js)
 [![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.0.12%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.0.12/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
@@ -314,7 +317,7 @@ site. Favorites and ratings are the two account actions implemented in-app.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE.md](LICENSE.md).
 
 ---
 

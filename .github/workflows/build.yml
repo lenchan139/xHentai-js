@@ -6,7 +6,8 @@ on:
     paths-ignore:
       - 'ehentai-app.user.js'
       - 'README.md'
-      - 'LICENSE'
+      - 'AGENTS.md'
+      - 'LICENSE.md'
       - '.gitignore'
       - 'shots/**'
       - 'test/**'
