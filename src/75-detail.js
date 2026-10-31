@@ -319,6 +319,7 @@
     if (thumbsEl) {
       const cleanups = [];
       let spritesPainted = false;
+      let spriteReady = false;
       const paintSprites = () => {
         if (spritesPainted) return;
         spritesPainted = true;
@@ -331,11 +332,12 @@
         }
         // Keep the shimmer until the sheet has actually decoded.
         const probe = new Image();
-        const clear = () => {
+        const markReady = () => {
+          spriteReady = true;
           thumbsEl.querySelectorAll('.ehx-thumb-loading').forEach((el) => el.classList.remove('ehx-thumb-loading'));
         };
-        probe.onload = clear;
-        probe.onerror = clear;
+        probe.onload = markReady;
+        probe.onerror = markReady;
         probe.src = first.dataset.sprite;
       };
       if ('IntersectionObserver' in window) {
@@ -359,7 +361,12 @@
       // instant; this is the only async boundary the site's sheet model has.
       const sitePageCount = Math.ceil(totalThumbPages / sitePer);
       if (halvesPerSite > 1 && thumbHalf === halvesPerSite - 1 && thumbPage + 1 < sitePageCount) {
+        let readyWaits = 0;
         const warmNext = async () => {
+          if (!spriteReady && readyWaits++ < 6) {
+            setTimeout(warmNext, 1500);
+            return;
+          }
           try {
             const nextUrl = detailPageUrl(galleryUrl, thumbPage + 1);
             const rec = await fetchDoc(nextUrl, { ttl: 300000 });
