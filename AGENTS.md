@@ -279,6 +279,15 @@ These numbers guided the current design; they are not guarantees.
   up to ~11 s in one Safari run. The host sends
   `cache-control: public, max-age=31536000`, so it is instant after the first
   load. This is the site's low-res preview sheet, not full page images.
+- Full-detail preview traffic for a 92-page gallery (ExHentai 3802196),
+  measured end to end:
+  - Normal (200px, 20/page): 5 sheets, **1,875,354 bytes (1.79 MiB)**.
+  - Small (100px, 40/page): 3 sheets, **529,462 bytes (517 KiB)** — 71.8%
+    less.
+  - Sheet grouping does not change total pixels: splitting Small into 20-thumb
+    app pages still downloads the same 529 KB, because the 40-thumb sheet is
+    loaded once. A single Small sheet (232 KB / 40 pages) is still smaller than
+    a single Normal sheet (413 KB / 20 pages).
 - Reader: `/s/` HTML ~0.4 s, 1280 px WebP ~0.4–0.8 s in Safari tests.
 - ExHentai `favorites.php`: ~11 s server time (see above).
 - ExHentai HTML TTFB is the dominant cost and highly variable: 0.5–10 s in Safari
