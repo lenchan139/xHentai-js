@@ -18,6 +18,10 @@
     return n == null ? 0 : n;
   }
 
+  function thumbHalfOf(url) {
+    return num(parseQuery(url).get('ph')) === 1 ? 1 : 0;
+  }
+
   function renderThumbGrid(data, gid) {
     const prog = progressStore.get(gid);
     const currentIndex = prog ? prog.index : -1;
@@ -165,6 +169,8 @@
     const gid = route.gid;
     const token = route.token;
     const galleryUrl = absUrl(`/g/${gid}/${token}/`);
+    const thumbPage = thumbPageOf(url);
+    const thumbHalf = thumbHalfOf(url);
 
     renderTopbar({
       left: iconBtn('back', 'back', 'Back'),
@@ -194,6 +200,7 @@
         </div>`;
     }
 
+    const fetchUrl = detailPageUrl(galleryUrl, thumbPage);
     let data = null;
     if (initialDoc) {
       if (sadPanda(initialDoc) || loginPage(initialDoc)) {
@@ -202,11 +209,11 @@
           : 'Log in to view this gallery.');
         return;
       }
-      try { data = parseDetail(initialDoc, url); } catch (e) { console.warn(e); }
+      try { data = parseDetail(initialDoc, fetchUrl); } catch (e) { console.warn(e); }
     }
 
     if (!data || !data.title) {
-      const rec = await fetchDoc(url, { force: !!opts.force, priority: true });
+      const rec = await fetchDoc(fetchUrl, { force: !!opts.force, priority: true });
       if (opts.seq && opts.seq !== app.navSeq) return;
       if (sadPanda(rec.doc) || loginPage(rec.doc)) {
         app.main.innerHTML = loginCardHtml(sadPanda(rec.doc)
@@ -244,11 +251,18 @@
 
     const firstThumb = data.thumbs[0];
     const totalPages = data.pages || (data.thumbRange && data.thumbRange.total) || data.thumbs.length || 0;
-    const thumbPage = thumbPageOf(url);
-    const perThumbPage = data.thumbsPerPage || 20;
-    const pageCount = data.thumbRange
-      ? Math.ceil(data.thumbRange.total / perThumbPage)
-      : Math.ceil((data.pages || 0) / perThumbPage);
+    // The site returns 40 thumbs per page at 100px (gt100) and 20 at 200px
+    // (gt200). Always show 20 per app page; the second half comes from the
+    // same sheet and needs no extra request.
+    const DISPLAY_PER = 20;
+    const sitePer = data.thumbsPerPage || 20;
+    const halvesPerSite = Math.max(1, Math.ceil(sitePer / DISPLAY_PER));
+    const appPage = thumbPage * halvesPerSite + thumbHalf;
+    const totalThumbPages = (data.thumbRange && data.thumbRange.total) || data.pages || data.thumbs.length || 0;
+    const pageCount = Math.ceil(totalThumbPages / DISPLAY_PER);
+    const shownThumbs = data.thumbs.slice(thumbHalf * DISPLAY_PER, thumbHalf * DISPLAY_PER + DISPLAY_PER);
+    const shownFrom = appPage * DISPLAY_PER + 1;
+    const shownTo = Math.min(totalThumbPages, shownFrom + shownThumbs.length - 1);
 
     app.main.innerHTML = `
       <div class="ehx-detail">
@@ -286,14 +300,14 @@
         ${data.comments.length ? `<div class="ehx-section">${detailCommentsHtml(data)}</div>` : ''}
 
         ${data.thumbs.length ? `<div class="ehx-section-head" style="padding:0 14px">
-          <div class="ehx-section-title">Pages <span>${esc(data.gpc || (data.thumbs.length + ' shown'))}</span></div>
+          <div class="ehx-section-title">Pages <span>${shownThumbs.length ? `Showing ${formatNum(shownFrom)}–${formatNum(shownTo)} of ${formatNum(totalThumbPages)}` : esc(data.gpc || '')}</span></div>
           <button class="ehx-chip" data-act="jump-page">${icon('jump', 13)} Jump</button>
         </div>
-        ${renderThumbGrid(data, gid)}
+        ${renderThumbGrid({ ...data, thumbs: shownThumbs }, gid)}
         <div class="ehx-thumbctl">
-          <button class="ehx-iconbtn ehx-small" data-act="thumb-prev" ${thumbPage <= 0 ? 'disabled' : ''}>${icon('back', 18)}</button>
-          <div class="ehx-grow">Page ${Math.min(thumbPage + 1, Math.max(1, pageCount))} / ${Math.max(1, pageCount)}</div>
-          <button class="ehx-iconbtn ehx-small" data-act="thumb-next" ${thumbPage >= pageCount - 1 ? 'disabled' : ''}>${icon('forward', 18)}</button>
+          <button class="ehx-iconbtn ehx-small" data-act="thumb-prev" ${appPage <= 0 ? 'disabled' : ''}>${icon('back', 18)}</button>
+          <div class="ehx-grow">Page ${Math.min(appPage + 1, Math.max(1, pageCount))} / ${Math.max(1, pageCount)}</div>
+          <button class="ehx-iconbtn ehx-small" data-act="thumb-next" ${appPage >= pageCount - 1 ? 'disabled' : ''}>${icon('forward', 18)}</button>
         </div>` : ''}
         <div style="height:18px"></div>
       </div>`;
@@ -339,6 +353,28 @@
       const paintSoon = () => paintSprites();
       if ('requestIdleCallback' in window) requestIdleCallback(paintSoon, { timeout: 1200 });
       else setTimeout(paintSoon, 600);
+
+      // On the second half of a 40-thumb sheet, the next sheet is the likely
+      // next page. Warm its HTML and sprite in the background so paging feels
+      // instant; this is the only async boundary the site's sheet model has.
+      const sitePageCount = Math.ceil(totalThumbPages / sitePer);
+      if (halvesPerSite > 1 && thumbHalf === halvesPerSite - 1 && thumbPage + 1 < sitePageCount) {
+        const warmNext = async () => {
+          try {
+            const nextUrl = detailPageUrl(galleryUrl, thumbPage + 1);
+            const rec = await fetchDoc(nextUrl, { ttl: 300000 });
+            const d = parseDetail(rec.doc, rec.url);
+            const nextSprite = (d.thumbs.find((t) => t.sprite) || {}).sprite;
+            if (nextSprite) {
+              const im = new Image();
+              im.decoding = 'async';
+              im.src = nextSprite;
+            }
+          } catch { /* background */ }
+        };
+        if ('requestIdleCallback' in window) requestIdleCallback(warmNext, { timeout: 2500 });
+        else setTimeout(warmNext, 1200);
+      }
       const setScale = () => {
         const cell = thumbsEl.querySelector('.ehx-thumb');
         if (!cell) return;
@@ -365,6 +401,7 @@
 
     app.refresh = () => {
       htmlCache.delete(url);
+      htmlCache.delete(fetchUrl);
       navigate(url, { replace: true, restore: false });
     };
 
@@ -391,12 +428,16 @@
       else toast('No readable pages found');
     });
 
-    onAction('thumb-prev', () => {
-      if (thumbPage > 0) navigate(detailPageUrl(galleryUrl, thumbPage - 1), { restore: false });
-    });
-    onAction('thumb-next', () => {
-      if (thumbPage < pageCount - 1) navigate(detailPageUrl(galleryUrl, thumbPage + 1), { restore: false });
-    });
+    const goThumbAppPage = (n) => {
+      if (n < 0 || n >= pageCount) return;
+      const sitePage = Math.floor(n / halvesPerSite);
+      const half = n % halvesPerSite;
+      let target = detailPageUrl(galleryUrl, sitePage);
+      if (half) target += (target.includes('?') ? '&' : '?') + 'ph=' + half;
+      navigate(target, { restore: false });
+    };
+    onAction('thumb-prev', () => goThumbAppPage(appPage - 1));
+    onAction('thumb-next', () => goThumbAppPage(appPage + 1));
 
     onAction('jump-page', () => {
       const s = openSheet({

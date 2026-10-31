@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **75 parser / 62 UI** assertions, both suites must pass
+- Current expectation: **75 parser / 66 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -87,7 +87,9 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   extra div with the “Page N” caption). This is the regression fixture for the
   v1.0.8 blank-preview bug.
 - `detail-ex-small.html` — the same gallery with the account Thumbnail Size set
-  to Small: `gt100`, 100px thumbs, 40 per page, 3 pages for 92 images.
+  to Small: `gt100`, 100px thumbs, 40 per page, 3 site pages for 92 images.
+- `detail-ex-small-p1.html` — site page 2 (pages 41–80) of the Small gallery,
+  used to test app-side 20-thumb paging.
 - `detail_p1.html` — page 2 of a 1,614-page gallery (thumbnail paging).
 - `reader.html`, `toplist.html`, `favorites.html`, `favpopup_loggedin.html`,
   `search.html`, `tag:language:chinese.html`, `popular.html`, `watched.html`.
@@ -195,6 +197,14 @@ stale async renders after the user navigates again.
   grid usually sits below the fold. A `new Image()` probe forces the request
   (Safari can defer offscreen CSS backgrounds) and the `.ehx-thumb-loading`
   shimmer is removed once the sheet decodes.
+- The grid always displays 20 previews per app page. With `gt100` (Small) the
+  site sheet holds 40, so the second half is sliced client-side (`?ph=1`) and
+  needs no second request; `gt200` holds 20. The pager counts app pages, not
+  site sheets, and `resolvePageUrl` still uses the site's `thumbsPerPage`.
+- When the user is on the second half of a 40-thumb sheet, the next site page's
+  HTML and first sprite are warmed in the background. This is the only async
+  boundary available: the site gives one image per 20/40 previews, so all
+  previews in a sheet appear together after that image downloads.
 - The first reader page is warmed in the background with `fetchDoc(firstThumb.href)`
   after the detail page renders.
 - Covers and sprites are preconnected per origin.

@@ -40,6 +40,9 @@ function fileFor(url) {
   if (p.startsWith('/tag/')) return 'tag:language:chinese.html';
   if (p.startsWith('/uploader/')) return 'index.html';
   if (p === '/' && u.searchParams.get('f_search')) return 'search.html';
+  if (p === '/g/3802196/f43d61f90b/') {
+    return u.searchParams.get('p') === '1' ? 'detail-ex-small-p1.html' : 'detail-ex-small.html';
+  }
   if (FILE_MAP[p]) return FILE_MAP[p];
   if (p.startsWith('/g/4291744/')) return 'detail.html';
   if (p.startsWith('/g/4291745/')) return 'detail_p1.html';
@@ -372,9 +375,21 @@ try {
   console.log('\nExHentai small thumbnail grid');
   await page.goto(BASE + '/g/3802196/f43d61f90b/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-thumb', { timeout: 8000 });
-  ok('40 small previews', await count('.ehx-thumb') === 40, String(await count('.ehx-thumb')));
-  ok('small pager shows 3 pages', (await txt('.ehx-thumbctl .ehx-grow')).includes('/ 3'), await txt('.ehx-thumbctl .ehx-grow'));
+  ok('20 small previews per app page', await count('.ehx-thumb') === 20, String(await count('.ehx-thumb')));
+  ok('small pager shows 5 pages', (await txt('.ehx-thumbctl .ehx-grow')).includes('/ 5'), await txt('.ehx-thumbctl .ehx-grow'));
   ok('small sprite base width is 100', await page.$eval('#ehx-thumbs', (el) => el.dataset.basew) === '100');
+  ok('small first half starts at page 1', /-1$/.test(await page.$eval('.ehx-thumb', (a) => a.getAttribute('href'))));
+
+  await page.evaluate(() => document.querySelector('[data-act="thumb-next"]').click());
+  await page.waitForFunction(() => location.search.includes('ph=1'), { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('.ehx-thumbctl .ehx-grow')?.textContent.includes('2 / 5'), { timeout: 5000 });
+  ok('second half keeps 20 cells', await count('.ehx-thumb') === 20, String(await count('.ehx-thumb')));
+  ok('second half starts at page 21', /-21$/.test(await page.$eval('.ehx-thumb', (a) => a.getAttribute('href'))));
+
+  await page.evaluate(() => document.querySelector('[data-act="thumb-next"]').click());
+  await page.waitForFunction(() => location.search.includes('p=1'), { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector('.ehx-thumbctl .ehx-grow')?.textContent.includes('3 / 5'), { timeout: 5000 });
+  ok('next sheet starts at page 41', /-41$/.test(await page.$eval('.ehx-thumb', (a) => a.getAttribute('href'))), await page.$eval('.ehx-thumb', (a) => a.getAttribute('href')));
 
   console.log('\nConsole/page errors');
   ok('no uncaught errors', errors.length === 0, errors.slice(0, 5).join(' | '));
