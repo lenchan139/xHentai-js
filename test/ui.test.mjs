@@ -185,6 +185,16 @@ try {
   await page.click('[data-update-close]');
   ok('update banner dismissed', await count('#ehx-update') === 0);
 
+  await page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem('ehx.update') || '{}');
+    state.dismissedAt = Date.now() - 25 * 60 * 60 * 1000;
+    localStorage.setItem('ehx.update', JSON.stringify(state));
+  });
+  await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#ehx-update', { timeout: 9000 });
+  ok('update banner returns after a day', (await txt('#ehx-update')).includes('99.0.0'));
+  await page.click('[data-update-close]');
+
   console.log('\nDetail');
   await page.click('.ehx-card');
   await page.waitForFunction(() => location.pathname.startsWith('/g/'), { timeout: 6000 });
@@ -312,7 +322,7 @@ try {
   step('click history card');
   await page.$eval('.ehx-card', (el) => el.scrollIntoView({ block: 'center' }));
   await new Promise((r) => setTimeout(r, 150));
-  await page.click('.ehx-card');
+  await page.evaluate(() => document.querySelector('.ehx-card').click());
   await page.waitForSelector('.ehx-reader.ehx-paged', { timeout: 10000 });
   await page.waitForSelector('.ehx-reader .ehx-rpage img', { timeout: 10000 });
   ok('paged reader active', await count('.ehx-reader.ehx-paged') === 1);

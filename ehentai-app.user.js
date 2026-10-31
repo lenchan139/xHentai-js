@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.16
+// @version      1.0.17
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.16';
+  const VERSION = '1.0.17';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -2025,6 +2025,7 @@
   const UPDATE_META_URL = (typeof window !== 'undefined' && window.__EHX_UPDATE_META_URL__)
     || 'https://raw.githubusercontent.com/lenchan139/xHentai-js/main/package.json';
   const UPDATE_CHECK_MS = 12 * 60 * 60 * 1000;
+  const UPDATE_DISMISS_MS = 24 * 60 * 60 * 1000;
 
   function versionCmp(a, b) {
     const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0);
@@ -2041,10 +2042,11 @@
     if (el) el.remove();
   }
 
-  function showUpdateBanner(latest) {
+  function showUpdateBanner(latest, force = false) {
     if (!app.root || !latest) return;
     const state = store.get('update', {}) || {};
-    if (state.dismissed === latest) return;
+    if (!force && state.dismissed === latest && state.dismissedAt
+      && Date.now() - state.dismissedAt < UPDATE_DISMISS_MS) return;
     let el = document.getElementById('ehx-update');
     if (!el) {
       el = document.createElement('div');
@@ -2060,7 +2062,10 @@
       <a class="ehx-update-install" href="${esc(UPDATE_INSTALL_URL)}" target="_blank" rel="noopener">Install</a>
       <button class="ehx-update-close" data-update-close aria-label="Dismiss">${icon('close', 16)}</button>`;
     el.querySelector('[data-update-close]').addEventListener('click', () => {
-      const next = Object.assign({}, store.get('update', {}), { dismissed: latest });
+      const next = Object.assign({}, store.get('update', {}), {
+        dismissed: latest,
+        dismissedAt: Date.now(),
+      });
       store.set('update', next);
       el.remove();
     });
@@ -2091,7 +2096,7 @@
       if (!latest) throw new Error('No version');
       store.set('update', Object.assign({}, state, { at: Date.now(), latest }));
       if (versionCmp(latest, VERSION) > 0) {
-        showUpdateBanner(latest);
+        showUpdateBanner(latest, manual);
         if (manual) toast(`Update ${latest} available`);
       } else {
         hideUpdateBanner();

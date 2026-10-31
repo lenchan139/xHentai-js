@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **75 parser / 70 UI** assertions, both suites must pass
+- Current expectation: **75 parser / 71 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -220,8 +220,9 @@ stale async renders after the user navigates again.
   via `ehx.update` in `localStorage`; it uses `credentials: 'omit'` and
   `cache: 'no-store'`.
 - A newer `version` shows a dismissible `#ehx-update` banner above the dock. The
-  dismissal is stored per version. Settings → Check for updates calls it with
-  `{ manual: true }` and toasts the result.
+  dismissal is stored per version with `dismissedAt` and hides the banner for
+  24 hours; a manual check (`{ manual: true }`) bypasses the dismissal and
+  toasts the result. Settings → Check for updates calls that path.
 - `package.json` is the lightweight version source; a userscript `@version`
   fallback is parsed if the JSON response is not JSON.
 
