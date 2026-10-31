@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.20
+// @version      1.0.21
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.20';
+  const VERSION = '1.0.21';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -69,22 +69,6 @@
     'Asian Porn': '#fe93ff',
     'Western': '#14e723',
     'Misc': '#9e9e9e',
-  };
-  // Namespace colors mirror JHenTai's UIConfig.
-  const TAG_COLORS = {
-    language: '#f5dff5',
-    artist: '#ccd9cd',
-    character: '#c8c8e7',
-    female: '#dbceee',
-    male: '#fdd7d7',
-    parody: '#eed4c5',
-    group: '#dfd6f7',
-    mixed: '#d6e0f7',
-    cosplayer: '#f6dcf3',
-    reclass: '#f6dce9',
-    temp: '#e9dbfa',
-    other: '#fadcdb',
-    location: '#f5dff5',
   };
   const TAG_ORDER = ['language', 'parody', 'character', 'group', 'artist', 'female', 'male', 'mixed', 'other', 'location'];
 
@@ -400,6 +384,11 @@
     --danger:#ff6f86;
     --ok:#71d69b;
     --shimmer:#2a2433;
+    --tag-bg:#2b2734;
+    --tag-fg:#c9c2d6;
+    --tag-watched-bg:#173a5e;
+    --tag-watched-fg:#8ec5ff;
+    --tag-watched-line:rgba(88,166,255,.45);
     --shadow:0 8px 26px rgba(0,0,0,.35);
     --sat:env(safe-area-inset-top,0px);
     --sab:env(safe-area-inset-bottom,0px);
@@ -422,6 +411,11 @@
     --danger:#c33a52;
     --ok:#25824d;
     --shimmer:#e9e1f2;
+    --tag-bg:#ece6f3;
+    --tag-fg:#4a4354;
+    --tag-watched-bg:#dbeafe;
+    --tag-watched-fg:#1d4ed8;
+    --tag-watched-line:#93c5fd;
     --shadow:0 8px 24px rgba(50,20,90,.12);
   }
   *,*::before,*::after{box-sizing:border-box}
@@ -570,15 +564,20 @@
   .ehx-card-sub{margin-top:4px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;min-width:0}
   .ehx-card-sub .ehx-nowrap{min-width:0}
   .ehx-card-tags{display:flex;flex-wrap:wrap;gap:4px;overflow:hidden;margin-top:6px;max-height:42px;align-content:flex-start}
-  .ehx-listmode .ehx-card-tags{max-height:23px}
   .ehx-tag{
     display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:5px;
     font-size:9.5px;font-weight:700;white-space:nowrap;
-    background:var(--tagc,#c9bfd6);color:#241c2e;
+    background:var(--tag-bg);color:var(--tag-fg);
   }
   .ehx-card-foot{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10.5px;color:var(--muted2)}
   .ehx-rating{display:inline-flex;align-items:center;gap:2px;color:#f5c451;font-weight:700;font-size:10.5px}
   .ehx-rating .ehx-i{width:11px;height:11px}
+  .ehx-stars{display:none;gap:1px}
+  .ehx-listmode .ehx-stars{display:inline-flex}
+  .ehx-listmode .ehx-rating-compact{display:none}
+  .ehx-star{display:inline-flex;opacity:.24}
+  .ehx-star.ehx-star-on{opacity:1}
+  .ehx-star.ehx-star-on svg{fill:currentColor}
   .ehx-progress{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.18);z-index:3}
   .ehx-progress>i{display:block;height:100%;background:var(--accent)}
   .ehx-hidden-tag{display:none}
@@ -589,11 +588,12 @@
   .ehx-reveal .ehx-i{opacity:.9}
 
   /* list mode */
-  .ehx-listmode .ehx-card{display:flex;align-items:stretch;min-height:104px}
-  .ehx-listmode .ehx-cover{width:82px;aspect-ratio:3/4;flex:0 0 auto;border-radius:0}
+  .ehx-listmode .ehx-card{display:flex;align-items:stretch;min-height:140px}
+  .ehx-listmode .ehx-cover{width:108px;aspect-ratio:3/4;flex:0 0 auto;border-radius:0}
   .ehx-listmode .ehx-cover:after{display:none}
-  .ehx-listmode .ehx-card-body{flex:1;min-width:0;padding:9px 10px;display:flex;flex-direction:column;justify-content:center}
+  .ehx-listmode .ehx-card-body{flex:1;min-width:0;padding:11px 12px;display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
   .ehx-listmode .ehx-card-title{min-height:0;-webkit-line-clamp:2}
+  .ehx-listmode .ehx-card-tags{max-height:66px}
   .ehx-listmode .ehx-badge.ehx-cat{font-size:9px;height:18px;left:5px;top:5px}
   .ehx-listmode .ehx-badge.ehx-pages{right:5px;bottom:5px}
 
@@ -722,10 +722,13 @@
   .ehx-tagwrap{display:flex;flex-wrap:wrap;gap:5px}
   .ehx-tagpill{
     display:inline-flex;align-items:center;height:25px;padding:0 9px;border-radius:7px;
-    font-size:11.5px;font-weight:700;background:var(--tagc,#c9bfd6);color:#241c2e;
-    border:1px solid rgba(255,255,255,.06);
+    font-size:11.5px;font-weight:700;background:var(--tag-bg);color:var(--tag-fg);
+    border:1px solid transparent;
   }
-  :root[data-ehx-theme="light"] .ehx-tagpill{border-color:rgba(0,0,0,.07)}
+  .ehx-tagpill.ehx-tag-watched{
+    background:var(--tag-watched-bg);color:var(--tag-watched-fg);
+    border-color:var(--tag-watched-line);
+  }
   .ehx-tagpill:active{opacity:.75}
   .ehx-tagpill.ehx-hiddenop{opacity:.38}
 
@@ -1206,6 +1209,21 @@
       const postedEl = tr.querySelector('[id^="posted"]');
       const posted = text(postedEl);
 
+      // The 80x16 .ir sprite slides across ten 16px stars; the top row is
+      // whole stars and the bottom row is the half-star variant.
+      let rating = 0;
+      const ir = tr.querySelector('.ir[style*="background-position"]');
+      if (ir) {
+        const style = ir.getAttribute('style') || '';
+        const rm = style.match(/background-position:\s*(-?\d+)px\s+(-?\d+)px/);
+        if (rm) {
+          const x = Math.abs(parseInt(rm[1], 10));
+          const y = parseInt(rm[2], 10);
+          const stars = (y <= -20 ? 4.5 : 5) - x / 16;
+          rating = Math.max(0, Math.min(10, Math.round(stars * 2 * 2) / 2));
+        }
+      }
+
       const tags = [];
       const tagSeen = new Set();
       for (const el of tr.querySelectorAll('.gl3c .gt, .gl3e .gt, .gt')) {
@@ -1234,7 +1252,7 @@
         posted,
         tags,
         language,
-        rating: 0,
+        rating,
       });
     }
 
@@ -1322,14 +1340,20 @@
     const tagSeen = new Set();
     for (const tr of doc.querySelectorAll('#taglist tr')) {
       const ns = text(tr.querySelector('td.tc')).replace(/:$/, '').trim();
-      for (const a of tr.querySelectorAll('td .gt a')) {
-        const name = text(a);
-        const full = ns ? `${ns}:${name}` : name;
+      for (const a of tr.querySelectorAll('td .gt a, td .gtw a, td .gtl a')) {
+        const tEl = a.closest('.gt, .gtw, .gtl');
+        const onclick = a.getAttribute('onclick') || '';
+        const om = onclick.match(/toggle_tagmenu\([^,]+,\s*'([^']+)'/);
+        let full = om ? om[1] : (a.getAttribute('title') || text(a));
+        // E-Hentai appends " | definition ..." to tags that have a wiki note.
+        full = full.split(' | ')[0].trim();
+        const idx = full.indexOf(':');
+        const name = idx > 0 ? full.slice(idx + 1) : full;
         if (!name || tagSeen.has(full)) continue;
         tagSeen.add(full);
-        const tEl = a.closest('.gt');
         const hidden = tEl ? (parseFloat(tEl.style.opacity || '1') < 0.7) : false;
-        tags.push({ ns, name, full, href: absUrl(a.getAttribute('href'), base), hidden });
+        const watched = tEl ? tEl.classList.contains('gtw') : false;
+        tags.push({ ns: idx > 0 ? full.slice(0, idx) : ns, name, full, href: absUrl(a.getAttribute('href'), base), hidden, watched });
       }
     }
     // Fallback: tags as plain links under #taglist.
@@ -1338,7 +1362,15 @@
         const full = decodeURIComponent((a.getAttribute('href') || '').split('/tag/')[1] || '').replace(/\+/g, ' ');
         if (!full) continue;
         const idx = full.indexOf(':');
-        tags.push({ ns: idx > 0 ? full.slice(0, idx) : '', name: idx > 0 ? full.slice(idx + 1) : full, full, href: absUrl(a.getAttribute('href'), base), hidden: false });
+        const tEl = a.closest('.gt, .gtw, .gtl');
+        tags.push({
+          ns: idx > 0 ? full.slice(0, idx) : '',
+          name: idx > 0 ? full.slice(idx + 1) : full,
+          full,
+          href: absUrl(a.getAttribute('href'), base),
+          hidden: false,
+          watched: tEl ? tEl.classList.contains('gtw') : false,
+        });
       }
     }
 
@@ -2226,16 +2258,21 @@
   // --- misc UI helpers --------------------------------------------------------
 
   function categoryColor(cat) { return CATEGORY_COLORS[cat] || '#9e9e9e'; }
-  function tagColor(ns) { return TAG_COLORS[ns] || '#d6c9e6'; }
 
   function tagPill(t, { nav = true, small = false } = {}) {
-    const color = tagColor(t.ns);
     const attrs = nav ? `data-tag="${esc(t.full || ((t.ns ? t.ns + ':' : '') + t.name))}"` : '';
-    return `<${nav ? 'button' : 'span'} class="ehx-tagpill${t.hidden ? ' ehx-hiddenop' : ''}" style="--tagc:${color}" ${attrs}>${esc(t.name || t.full)}</${nav ? 'button' : 'span'}>`;
+    const cls = `ehx-tagpill${t.watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
+    return `<${nav ? 'button' : 'span'} class="${cls}" ${attrs}>${esc(t.name || t.full)}</${nav ? 'button' : 'span'}>`;
   }
 
   function tagUrl(full) {
     return '/tag/' + encodeURIComponent(full).replace(/%20/g, '+').replace(/%3A/gi, ':');
+  }
+
+  function ratingStars(rating10) {
+    const stars = clamp((rating10 || 0) / 2, 0, 5);
+    const full = Math.round(stars);
+    return `<span class="ehx-rating ehx-stars" aria-label="${stars.toFixed(1)} / 5">${Array.from({ length: 5 }, (_, i) => `<span class="ehx-star${i < full ? ' ehx-star-on' : ''}">${icon('star', 11)}</span>`).join('')}</span>`;
   }
 
   // Covers are only ~250px wide, but the image hosts often take 2-4s per
@@ -2276,8 +2313,10 @@
     const cat = g.category || 'Misc';
     const color = categoryColor(cat);
     const blurred = settings.blurCovers && !opts.noBlur;
-    const tags = (g.tags || []).filter((t) => t.ns !== 'language').slice(0, 3);
-    const rating = g.rating ? `<span class="ehx-rating">${icon('star', 11)}${g.rating.toFixed(1)}</span>` : '';
+    const tags = (g.tags || []).slice(0, 8);
+    const rating = g.rating
+      ? `<span class="ehx-rating ehx-rating-compact">${icon('star', 11)}${g.rating.toFixed(1)}</span>${ratingStars(g.rating)}`
+      : '';
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
     const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
     const imgAttrs = opts.eager
@@ -2287,7 +2326,7 @@
       ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
-      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag" style="--tagc:${tagColor(t.ns)}">${esc(t.name)}</span>`).join('')}</div>`
+      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag">${esc(t.name)}</span>`).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
       <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">
@@ -2302,7 +2341,7 @@
         <div class="ehx-card-sub">
           ${rating}
           ${g.uploader ? `<span class="ehx-nowrap">${esc(g.uploader)}</span>` : ''}
-          ${g.posted ? `<span class="ehx-dim" style="margin-left:auto;font-size:9.5px">${esc(g.posted.split(' ')[0])}</span>` : ''}
+          ${g.posted ? `<span class="ehx-dim" style="margin-left:auto;font-size:9.5px">${esc(g.posted)}</span>` : ''}
         </div>
         ${tagsHtml}
       </div>

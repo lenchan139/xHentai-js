@@ -179,6 +179,22 @@ try {
   ok('covers use the 250px /w/ list image', covers.every((c) => !c.data || /\/w\//.test(c.data)));
   ok('off-screen covers are deferred', covers.slice(12).some((c) => !!c.data));
 
+  console.log('\nList mode');
+  await page.click('[data-act="toggle-layout"]');
+  await page.waitForSelector('.ehx-grid.ehx-listmode', { timeout: 6000 });
+  const listDims = await page.$eval('.ehx-listmode .ehx-card', (el) => ({
+    h: el.getBoundingClientRect().height,
+    cover: el.querySelector('.ehx-cover').getBoundingClientRect().width,
+    stars: el.querySelectorAll('.ehx-stars .ehx-star').length,
+    tags: [...el.querySelectorAll('.ehx-tag')].map((t) => t.textContent),
+  }));
+  ok('list card is taller', listDims.h >= 130, listDims.h + 'px');
+  ok('list cover is larger', listDims.cover >= 100, listDims.cover + 'px');
+  ok('list card has a 5-star row', listDims.stars === 5, String(listDims.stars));
+  ok('list card shows the language tag', listDims.tags.includes('portuguese'), JSON.stringify(listDims.tags));
+  await page.click('[data-act="toggle-layout"]');
+  await page.waitForSelector('.ehx-grid:not(.ehx-listmode)', { timeout: 6000 });
+
   console.log('\nUpdate notifier');
   await page.waitForSelector('#ehx-update', { timeout: 9000 });
   ok('update banner shows newer version', (await txt('#ehx-update')).includes('99.0.0'), await txt('#ehx-update'));
@@ -402,6 +418,18 @@ try {
   }));
   ok('exhentai preview grid has 20 cells', exThumbs.length === 20, String(exThumbs.length));
   ok('every exhentai cell has art', exThumbs.every((t) => /hath\.network/.test(t.sprite) || /^https?:/.test(t.img)), JSON.stringify(exThumbs.slice(0, 2)));
+  const tagStyle = await page.evaluate(() => {
+    const normal = document.querySelector('.ehx-tagpill:not(.ehx-tag-watched)');
+    const watched = document.querySelector('.ehx-tagpill.ehx-tag-watched');
+    return {
+      normal: document.querySelectorAll('.ehx-tagpill:not(.ehx-tag-watched)').length,
+      watched: document.querySelectorAll('.ehx-tagpill.ehx-tag-watched').length,
+      normalBg: normal ? getComputedStyle(normal).backgroundColor : '',
+      watchedBg: watched ? getComputedStyle(watched).backgroundColor : '',
+    };
+  });
+  ok('watched tags are highlighted', tagStyle.watched === 4, JSON.stringify(tagStyle));
+  ok('normal tags use gray, watched use blue', tagStyle.normal > 20 && tagStyle.normalBg !== tagStyle.watchedBg, JSON.stringify(tagStyle));
 
   console.log('\nExHentai small thumbnail grid');
   await page.goto(BASE + '/g/3802196/f43d61f90b/', { waitUntil: 'domcontentloaded' });

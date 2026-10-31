@@ -243,6 +243,21 @@
       const postedEl = tr.querySelector('[id^="posted"]');
       const posted = text(postedEl);
 
+      // The 80x16 .ir sprite slides across ten 16px stars; the top row is
+      // whole stars and the bottom row is the half-star variant.
+      let rating = 0;
+      const ir = tr.querySelector('.ir[style*="background-position"]');
+      if (ir) {
+        const style = ir.getAttribute('style') || '';
+        const rm = style.match(/background-position:\s*(-?\d+)px\s+(-?\d+)px/);
+        if (rm) {
+          const x = Math.abs(parseInt(rm[1], 10));
+          const y = parseInt(rm[2], 10);
+          const stars = (y <= -20 ? 4.5 : 5) - x / 16;
+          rating = Math.max(0, Math.min(10, Math.round(stars * 2 * 2) / 2));
+        }
+      }
+
       const tags = [];
       const tagSeen = new Set();
       for (const el of tr.querySelectorAll('.gl3c .gt, .gl3e .gt, .gt')) {
@@ -271,7 +286,7 @@
         posted,
         tags,
         language,
-        rating: 0,
+        rating,
       });
     }
 
@@ -359,14 +374,20 @@
     const tagSeen = new Set();
     for (const tr of doc.querySelectorAll('#taglist tr')) {
       const ns = text(tr.querySelector('td.tc')).replace(/:$/, '').trim();
-      for (const a of tr.querySelectorAll('td .gt a')) {
-        const name = text(a);
-        const full = ns ? `${ns}:${name}` : name;
+      for (const a of tr.querySelectorAll('td .gt a, td .gtw a, td .gtl a')) {
+        const tEl = a.closest('.gt, .gtw, .gtl');
+        const onclick = a.getAttribute('onclick') || '';
+        const om = onclick.match(/toggle_tagmenu\([^,]+,\s*'([^']+)'/);
+        let full = om ? om[1] : (a.getAttribute('title') || text(a));
+        // E-Hentai appends " | definition ..." to tags that have a wiki note.
+        full = full.split(' | ')[0].trim();
+        const idx = full.indexOf(':');
+        const name = idx > 0 ? full.slice(idx + 1) : full;
         if (!name || tagSeen.has(full)) continue;
         tagSeen.add(full);
-        const tEl = a.closest('.gt');
         const hidden = tEl ? (parseFloat(tEl.style.opacity || '1') < 0.7) : false;
-        tags.push({ ns, name, full, href: absUrl(a.getAttribute('href'), base), hidden });
+        const watched = tEl ? tEl.classList.contains('gtw') : false;
+        tags.push({ ns: idx > 0 ? full.slice(0, idx) : ns, name, full, href: absUrl(a.getAttribute('href'), base), hidden, watched });
       }
     }
     // Fallback: tags as plain links under #taglist.
@@ -375,7 +396,15 @@
         const full = decodeURIComponent((a.getAttribute('href') || '').split('/tag/')[1] || '').replace(/\+/g, ' ');
         if (!full) continue;
         const idx = full.indexOf(':');
-        tags.push({ ns: idx > 0 ? full.slice(0, idx) : '', name: idx > 0 ? full.slice(idx + 1) : full, full, href: absUrl(a.getAttribute('href'), base), hidden: false });
+        const tEl = a.closest('.gt, .gtw, .gtl');
+        tags.push({
+          ns: idx > 0 ? full.slice(0, idx) : '',
+          name: idx > 0 ? full.slice(idx + 1) : full,
+          full,
+          href: absUrl(a.getAttribute('href'), base),
+          hidden: false,
+          watched: tEl ? tEl.classList.contains('gtw') : false,
+        });
       }
     }
 

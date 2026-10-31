@@ -645,16 +645,21 @@
   // --- misc UI helpers --------------------------------------------------------
 
   function categoryColor(cat) { return CATEGORY_COLORS[cat] || '#9e9e9e'; }
-  function tagColor(ns) { return TAG_COLORS[ns] || '#d6c9e6'; }
 
   function tagPill(t, { nav = true, small = false } = {}) {
-    const color = tagColor(t.ns);
     const attrs = nav ? `data-tag="${esc(t.full || ((t.ns ? t.ns + ':' : '') + t.name))}"` : '';
-    return `<${nav ? 'button' : 'span'} class="ehx-tagpill${t.hidden ? ' ehx-hiddenop' : ''}" style="--tagc:${color}" ${attrs}>${esc(t.name || t.full)}</${nav ? 'button' : 'span'}>`;
+    const cls = `ehx-tagpill${t.watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
+    return `<${nav ? 'button' : 'span'} class="${cls}" ${attrs}>${esc(t.name || t.full)}</${nav ? 'button' : 'span'}>`;
   }
 
   function tagUrl(full) {
     return '/tag/' + encodeURIComponent(full).replace(/%20/g, '+').replace(/%3A/gi, ':');
+  }
+
+  function ratingStars(rating10) {
+    const stars = clamp((rating10 || 0) / 2, 0, 5);
+    const full = Math.round(stars);
+    return `<span class="ehx-rating ehx-stars" aria-label="${stars.toFixed(1)} / 5">${Array.from({ length: 5 }, (_, i) => `<span class="ehx-star${i < full ? ' ehx-star-on' : ''}">${icon('star', 11)}</span>`).join('')}</span>`;
   }
 
   // Covers are only ~250px wide, but the image hosts often take 2-4s per
@@ -695,8 +700,10 @@
     const cat = g.category || 'Misc';
     const color = categoryColor(cat);
     const blurred = settings.blurCovers && !opts.noBlur;
-    const tags = (g.tags || []).filter((t) => t.ns !== 'language').slice(0, 3);
-    const rating = g.rating ? `<span class="ehx-rating">${icon('star', 11)}${g.rating.toFixed(1)}</span>` : '';
+    const tags = (g.tags || []).slice(0, 8);
+    const rating = g.rating
+      ? `<span class="ehx-rating ehx-rating-compact">${icon('star', 11)}${g.rating.toFixed(1)}</span>${ratingStars(g.rating)}`
+      : '';
     const pct = prog && prog.total ? clamp(Math.round((prog.index / prog.total) * 100), 1, 100) : 0;
     const pages = g.pages ? `<span class="ehx-badge ehx-pages">${formatNum(g.pages)}P</span>` : '';
     const imgAttrs = opts.eager
@@ -706,7 +713,7 @@
       ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
-      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag" style="--tagc:${tagColor(t.ns)}">${esc(t.name)}</span>`).join('')}</div>`
+      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag">${esc(t.name)}</span>`).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
       <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">
@@ -721,7 +728,7 @@
         <div class="ehx-card-sub">
           ${rating}
           ${g.uploader ? `<span class="ehx-nowrap">${esc(g.uploader)}</span>` : ''}
-          ${g.posted ? `<span class="ehx-dim" style="margin-left:auto;font-size:9.5px">${esc(g.posted.split(' ')[0])}</span>` : ''}
+          ${g.posted ? `<span class="ehx-dim" style="margin-left:auto;font-size:9.5px">${esc(g.posted)}</span>` : ''}
         </div>
         ${tagsHtml}
       </div>

@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **75 parser / 71 UI** assertions, both suites must pass
+- Current expectation: **81 parser / 77 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -159,6 +159,9 @@ stale async renders after the user navigates again.
     share one code path.
   - Page counts are read from the dedicated `<div>4 pages</div>`, never from
     concatenated row text (`15:10` + `4 pages` would otherwise parse as `104`).
+  - List ratings come from the 80x16 `.ir` star sprite. The x offset selects
+    5, 4, 3, 2 or 1 whole stars (`5 - |x|/16`); the lower sprite row (`y <= -20`)
+    is the half-star variant. Values are stored on the 0–10 scale.
   - The app requests Compact (`inline_set=dm_l`) because it does **not** set a
     display-mode cookie. `dm_e` rewrites the visitor's `sl` cookie, which is a
     side effect we avoid.
@@ -170,6 +173,9 @@ stale async renders after the user navigates again.
   - Thumbnail markup has two shapes: `<a><div style="background:url(...)"></div></a>`
     on E-Hentai and `<a><div><div style="background:url(...)"></div><div>Page N</div></div></a>`
     on ExHentai. Always select `div[style*="url("]`, not the first `div`.
+  - Tags are selected from `.gt`, `.gtw` (watched) and `.gtl`; the full tag is
+    taken from `toggle_tagmenu(...)` (falling back to the link text) and the
+    “ | definition” suffix is stripped. `watched` is true for `.gtw`.
 - `parseReader(doc, base)` reads `img#img` (`src`, inline width/height), the
   counter, `load_image()` nav, gallery link, and the `/fullimg/` original URL.
   The served image is E-Hentai's resampled WebP (`xres=800/1280`); the original
@@ -396,7 +402,8 @@ This is a vanilla-JS reimplementation, not a port. UX decisions were taken from:
 - `lib/src/widget/eh_gallery_list_card_.dart` and
   `eh_gallery_waterflow_card.dart` — card layout, category/rating chips,
   progress indicator.
-- `lib/src/config/ui_config.dart` — category palette and tag namespace colors.
+- `lib/src/config/ui_config.dart` — category palette. Tag pills intentionally
+  use a fixed gray style, with watched tags in blue.
 - `lib/src/pages/details/details_page.dart` — hero/cover, action row, info table,
   tags, comments, thumbnails.
 - `lib/src/pages/read/read_page.dart` and `read/layout/*` — vertical/paged

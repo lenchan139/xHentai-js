@@ -2,7 +2,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.20';
+  const VERSION = '1.0.21';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -35,22 +35,6 @@
     'Asian Porn': '#fe93ff',
     'Western': '#14e723',
     'Misc': '#9e9e9e',
-  };
-  // Namespace colors mirror JHenTai's UIConfig.
-  const TAG_COLORS = {
-    language: '#f5dff5',
-    artist: '#ccd9cd',
-    character: '#c8c8e7',
-    female: '#dbceee',
-    male: '#fdd7d7',
-    parody: '#eed4c5',
-    group: '#dfd6f7',
-    mixed: '#d6e0f7',
-    cosplayer: '#f6dcf3',
-    reclass: '#f6dce9',
-    temp: '#e9dbfa',
-    other: '#fadcdb',
-    location: '#f5dff5',
   };
   const TAG_ORDER = ['language', 'parody', 'character', 'group', 'artist', 'female', 'male', 'mixed', 'other', 'location'];
 

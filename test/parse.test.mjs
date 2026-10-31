@@ -45,6 +45,8 @@ console.log('\nparseList (front page)');
   ok('first has category', !!r.items[0].category, r.items[0].category);
   ok('first has pages', r.items[0].pages > 0, String(r.items[0].pages));
   ok('first has tags', r.items[0].tags.length > 0);
+  ok('first has rating', r.items[0].rating > 0, String(r.items[0].rating));
+  ok('rating is 4.0', r.items[0].rating === 4, String(r.items[0].rating));
   ok('next link found', /next=/.test(r.next), r.next);
 }
 
@@ -130,6 +132,10 @@ console.log('\nparseDetail (ExHentai wrapped preview)');
   ok('cover from s.exhentai.org', /s\.exhentai\.org\/w\//.test(d.cover), d.cover);
   ok('thumbs = 20', d.thumbs.length === 20, String(d.thumbs.length));
   ok('every thumb has a sprite', d.thumbs.every((t) => /hath\.network\/.*\.webp/.test(t.sprite)), JSON.stringify(d.thumbs[0]));
+  ok('all tags parsed', d.tags.length > 30, String(d.tags.length));
+  ok('watched tags parsed', d.tags.filter((t) => t.watched).length === 4, String(d.tags.filter((t) => t.watched).length));
+  ok('watched tag names', d.tags.filter((t) => t.watched).some((t) => t.full === 'female:teacher'));
+  ok('tag names are clean', d.tags.every((t) => !t.name.includes(' | ')), JSON.stringify(d.tags.find((t) => t.name.includes(' | '))));
   ok('sprite offsets parsed', d.thumbs[1].offX === -200 && d.thumbs[1].offY === 0, JSON.stringify({ x: d.thumbs[1].offX, y: d.thumbs[1].offY }));
   ok('thumb width 200', d.thumbs[0].w === 200, String(d.thumbs[0].w));
   ok('pages = 229', d.pages === 229, String(d.pages));
