@@ -77,6 +77,12 @@
         restore: false,
       }).catch(showError);
 
+      // Check the auto-update source in the background. The result is cached
+      // for 12 hours; a newer version shows a dismissible in-app banner.
+      setTimeout(() => {
+        if (navigator.onLine !== false) checkForUpdate();
+      }, 3500);
+
       // Keep the theme in sync with iOS while "Auto" is selected.
       try {
         const mq = matchMedia('(prefers-color-scheme: dark)');

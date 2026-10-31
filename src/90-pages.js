@@ -178,6 +178,7 @@
       <div class="ehx-group-title">About</div>
       <div class="ehx-group">
         ${settingRow('E-Hentai App', 'JHenTai-inspired mobile shell', `<span class="ehx-dim" style="font-size:12px">v${VERSION}</span>`)}
+        ${settingRow('Check for updates', 'Reads the version on the main branch', `<button class="ehx-chip" data-cmd="check-update">Check</button>`)}
         ${settingRow('Reference app', 'JHenTai by jiangtian616', `<a class="ehx-chip" href="https://github.com/jiangtian616/JHenTai" target="_blank" rel="noopener">GitHub</a>`)}
         ${settingRow('User agent', ua.slice(0, 46) + (ua.length > 46 ? '…' : ''), '')}
       </div>
@@ -219,6 +220,7 @@
       else if (c === 'login') openLoginSheet();
       else if (c === 'logout') logout();
       else if (c === 'original') location.href = originalUrl(currentUrl());
+      else if (c === 'check-update') checkForUpdate({ manual: true });
       else if (c === 'clear-cache') { clearRuntimeCaches(); toast('Page cache cleared'); }
       else if (c === 'clear-progress') {
         confirmSheet('Clear reading progress?', 'This removes saved page positions for every gallery on this device.', { ok: 'Clear', danger: true })

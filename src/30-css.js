@@ -492,6 +492,25 @@
   :root[data-ehx-theme="light"] .ehx-toast{background:rgba(35,30,42,.94)}
   .ehx-toast.ehx-show{opacity:1;transform:translate(-50%,0)}
 
+  /* Update banner (above the dock) */
+  .ehx-update{
+    position:fixed;left:10px;right:10px;bottom:calc(var(--tabh) + var(--sab) + 10px);
+    z-index:80;display:flex;align-items:center;gap:10px;padding:10px 12px;
+    border-radius:14px;background:var(--card);border:1px solid var(--accent);
+    box-shadow:0 12px 34px rgba(0,0,0,.42);color:var(--text);
+  }
+  .ehx-update-msg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;color:var(--accent)}
+  .ehx-update-msg b{display:block;font-size:12.5px;color:var(--text)}
+  .ehx-update-msg span{display:block;font-size:10.5px;color:var(--muted2);margin-top:1px}
+  .ehx-update-install{
+    flex:0 0 auto;padding:7px 12px;border-radius:999px;background:var(--accent);color:#241a3a;
+    font-size:11.5px;font-weight:800;text-decoration:none;
+  }
+  .ehx-update-close{
+    flex:0 0 auto;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;
+    color:var(--muted2);background:var(--card2);
+  }
+
   /* ---------- Forms ---------- */
   .ehx-input{
     width:100%;height:44px;padding:0 13px;border-radius:12px;

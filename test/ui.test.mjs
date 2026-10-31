@@ -67,6 +67,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (u.pathname === '/__resetfav') { favRequests = 0; res.writeHead(204); res.end(); return; }
+    if (u.pathname === '/__update') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ version: '99.0.0' }));
+      return;
+    }
     if (u.pathname === '/favorites.php') favRequests++;
     if (req.method === 'POST') {
       let body = '';
@@ -142,6 +147,10 @@ const txt = (sel) => page.$eval(sel, (el) => el.textContent.trim()).catch(() => 
 const count = (sel) => page.$$eval(sel, (els) => els.length).catch(() => 0);
 
 try {
+  await page.evaluateOnNewDocument(`
+    window.__EHX_UPDATE_META_URL__ = ${JSON.stringify(BASE + '/__update')};
+    window.__EHX_UPDATE_INSTALL_URL__ = ${JSON.stringify(BASE + '/__update')};
+  `);
   await page.evaluateOnNewDocument(userscript);
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
@@ -169,6 +178,12 @@ try {
   ok('every card has a cover URL', covers.every((c) => /\/w\//.test(c.src) || /\/w\//.test(c.data)));
   ok('covers use the 250px /w/ list image', covers.every((c) => !c.data || /\/w\//.test(c.data)));
   ok('off-screen covers are deferred', covers.slice(12).some((c) => !!c.data));
+
+  console.log('\nUpdate notifier');
+  await page.waitForSelector('#ehx-update', { timeout: 9000 });
+  ok('update banner shows newer version', (await txt('#ehx-update')).includes('99.0.0'), await txt('#ehx-update'));
+  await page.click('[data-update-close]');
+  ok('update banner dismissed', await count('#ehx-update') === 0);
 
   console.log('\nDetail');
   await page.click('.ehx-card');

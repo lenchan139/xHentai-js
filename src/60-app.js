@@ -437,6 +437,90 @@
     toastTimer = setTimeout(() => el.classList.remove('ehx-show'), ms);
   }
 
+  // --- update notifier --------------------------------------------------------
+
+  const UPDATE_INSTALL_URL = (typeof window !== 'undefined' && window.__EHX_UPDATE_INSTALL_URL__)
+    || 'https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js';
+  const UPDATE_META_URL = (typeof window !== 'undefined' && window.__EHX_UPDATE_META_URL__)
+    || 'https://raw.githubusercontent.com/lenchan139/xHentai-js/main/package.json';
+  const UPDATE_CHECK_MS = 12 * 60 * 60 * 1000;
+
+  function versionCmp(a, b) {
+    const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0);
+    const pb = String(b || '').split('.').map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d;
+    }
+    return 0;
+  }
+
+  function hideUpdateBanner() {
+    const el = document.getElementById('ehx-update');
+    if (el) el.remove();
+  }
+
+  function showUpdateBanner(latest) {
+    if (!app.root || !latest) return;
+    const state = store.get('update', {}) || {};
+    if (state.dismissed === latest) return;
+    let el = document.getElementById('ehx-update');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ehx-update';
+      el.className = 'ehx-update';
+      app.root.appendChild(el);
+    }
+    el.innerHTML = `
+      <div class="ehx-update-msg">
+        ${icon('download', 19)}
+        <div><b>Update available</b><span>v${esc(latest)} · you have v${esc(VERSION)}</span></div>
+      </div>
+      <a class="ehx-update-install" href="${esc(UPDATE_INSTALL_URL)}" target="_blank" rel="noopener">Install</a>
+      <button class="ehx-update-close" data-update-close aria-label="Dismiss">${icon('close', 16)}</button>`;
+    el.querySelector('[data-update-close]').addEventListener('click', () => {
+      const next = Object.assign({}, store.get('update', {}), { dismissed: latest });
+      store.set('update', next);
+      el.remove();
+    });
+  }
+
+  async function checkForUpdate(opts = {}) {
+    const manual = !!opts.manual;
+    const state = store.get('update', {}) || {};
+    if (!manual && state.at && Date.now() - state.at < UPDATE_CHECK_MS) {
+      if (state.latest && versionCmp(state.latest, VERSION) > 0) showUpdateBanner(state.latest);
+      return;
+    }
+    try {
+      const res = await fetch(UPDATE_META_URL, {
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        headers: { Accept: 'application/json,text/plain' },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      let latest = '';
+      try { latest = (JSON.parse(text) || {}).version || ''; } catch { /* fallback below */ }
+      if (!latest) {
+        const m = text.match(/\/\/\s*@version\s+([0-9][0-9.]*)/);
+        latest = m ? m[1] : '';
+      }
+      if (!latest) throw new Error('No version');
+      store.set('update', Object.assign({}, state, { at: Date.now(), latest }));
+      if (versionCmp(latest, VERSION) > 0) {
+        showUpdateBanner(latest);
+        if (manual) toast(`Update ${latest} available`);
+      } else {
+        hideUpdateBanner();
+        if (manual) toast(`You are on the latest version (${VERSION})`);
+      }
+    } catch (e) {
+      if (manual) toast('Could not check for updates');
+    }
+  }
+
   // --- login ------------------------------------------------------------------
 
   function detectLoggedIn() {

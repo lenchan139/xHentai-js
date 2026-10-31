@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **75 parser / 68 UI** assertions, both suites must pass
+- Current expectation: **75 parser / 70 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -211,6 +211,20 @@ stale async renders after the user navigates again.
 - Favorites and ratings reuse the site's own popup/API tokens; comments are
   sanitized before rendering.
 
+### Update notifier (`src/60-app.js`)
+
+- `UPDATE_META_URL` is `main/package.json` (about 1 KB) and `UPDATE_INSTALL_URL`
+  is the raw `main/ehentai-app.user.js`; both can be overridden for tests with
+  `window.__EHX_UPDATE_META_URL__` / `window.__EHX_UPDATE_INSTALL_URL__`.
+- `checkForUpdate()` runs 3.5 s after boot and is throttled to once per 12 hours
+  via `ehx.update` in `localStorage`; it uses `credentials: 'omit'` and
+  `cache: 'no-store'`.
+- A newer `version` shows a dismissible `#ehx-update` banner above the dock. The
+  dismissal is stored per version. Settings → Check for updates calls it with
+  `{ manual: true }` and toasts the result.
+- `package.json` is the lightweight version source; a userscript `@version`
+  fallback is parsed if the JSON response is not JSON.
+
 ### Reader (`src/80-reader.js`, `src/85-reader-ui.js`)
 
 - `resolvePageUrl()` maps a page index to its `/s/<key>/<gid>-<n>` URL via the
@@ -249,7 +263,8 @@ preload       1..4
 ```
 
 `localStorage` keys include `ehx.settings`, `ehx.progress`, `ehx.history`,
-`ehx.searches` and the page cache. Cookies stay in the browser's cookie store.
+`ehx.searches`, `ehx.update` (update check cache/dismissal) and the page cache.
+Cookies stay in the browser's cookie store.
 
 ## Site quirks and compatibility notes
 

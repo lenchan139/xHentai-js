@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.15
+// @version      1.0.16
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.15';
+  const VERSION = '1.0.16';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -869,6 +869,25 @@
   }
   :root[data-ehx-theme="light"] .ehx-toast{background:rgba(35,30,42,.94)}
   .ehx-toast.ehx-show{opacity:1;transform:translate(-50%,0)}
+
+  /* Update banner (above the dock) */
+  .ehx-update{
+    position:fixed;left:10px;right:10px;bottom:calc(var(--tabh) + var(--sab) + 10px);
+    z-index:80;display:flex;align-items:center;gap:10px;padding:10px 12px;
+    border-radius:14px;background:var(--card);border:1px solid var(--accent);
+    box-shadow:0 12px 34px rgba(0,0,0,.42);color:var(--text);
+  }
+  .ehx-update-msg{display:flex;align-items:center;gap:9px;flex:1;min-width:0;color:var(--accent)}
+  .ehx-update-msg b{display:block;font-size:12.5px;color:var(--text)}
+  .ehx-update-msg span{display:block;font-size:10.5px;color:var(--muted2);margin-top:1px}
+  .ehx-update-install{
+    flex:0 0 auto;padding:7px 12px;border-radius:999px;background:var(--accent);color:#241a3a;
+    font-size:11.5px;font-weight:800;text-decoration:none;
+  }
+  .ehx-update-close{
+    flex:0 0 auto;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;
+    color:var(--muted2);background:var(--card2);
+  }
 
   /* ---------- Forms ---------- */
   .ehx-input{
@@ -1997,6 +2016,90 @@
     requestAnimationFrame(() => el.classList.add('ehx-show'));
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('ehx-show'), ms);
+  }
+
+  // --- update notifier --------------------------------------------------------
+
+  const UPDATE_INSTALL_URL = (typeof window !== 'undefined' && window.__EHX_UPDATE_INSTALL_URL__)
+    || 'https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js';
+  const UPDATE_META_URL = (typeof window !== 'undefined' && window.__EHX_UPDATE_META_URL__)
+    || 'https://raw.githubusercontent.com/lenchan139/xHentai-js/main/package.json';
+  const UPDATE_CHECK_MS = 12 * 60 * 60 * 1000;
+
+  function versionCmp(a, b) {
+    const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0);
+    const pb = String(b || '').split('.').map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d;
+    }
+    return 0;
+  }
+
+  function hideUpdateBanner() {
+    const el = document.getElementById('ehx-update');
+    if (el) el.remove();
+  }
+
+  function showUpdateBanner(latest) {
+    if (!app.root || !latest) return;
+    const state = store.get('update', {}) || {};
+    if (state.dismissed === latest) return;
+    let el = document.getElementById('ehx-update');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ehx-update';
+      el.className = 'ehx-update';
+      app.root.appendChild(el);
+    }
+    el.innerHTML = `
+      <div class="ehx-update-msg">
+        ${icon('download', 19)}
+        <div><b>Update available</b><span>v${esc(latest)} · you have v${esc(VERSION)}</span></div>
+      </div>
+      <a class="ehx-update-install" href="${esc(UPDATE_INSTALL_URL)}" target="_blank" rel="noopener">Install</a>
+      <button class="ehx-update-close" data-update-close aria-label="Dismiss">${icon('close', 16)}</button>`;
+    el.querySelector('[data-update-close]').addEventListener('click', () => {
+      const next = Object.assign({}, store.get('update', {}), { dismissed: latest });
+      store.set('update', next);
+      el.remove();
+    });
+  }
+
+  async function checkForUpdate(opts = {}) {
+    const manual = !!opts.manual;
+    const state = store.get('update', {}) || {};
+    if (!manual && state.at && Date.now() - state.at < UPDATE_CHECK_MS) {
+      if (state.latest && versionCmp(state.latest, VERSION) > 0) showUpdateBanner(state.latest);
+      return;
+    }
+    try {
+      const res = await fetch(UPDATE_META_URL, {
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        headers: { Accept: 'application/json,text/plain' },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      let latest = '';
+      try { latest = (JSON.parse(text) || {}).version || ''; } catch { /* fallback below */ }
+      if (!latest) {
+        const m = text.match(/\/\/\s*@version\s+([0-9][0-9.]*)/);
+        latest = m ? m[1] : '';
+      }
+      if (!latest) throw new Error('No version');
+      store.set('update', Object.assign({}, state, { at: Date.now(), latest }));
+      if (versionCmp(latest, VERSION) > 0) {
+        showUpdateBanner(latest);
+        if (manual) toast(`Update ${latest} available`);
+      } else {
+        hideUpdateBanner();
+        if (manual) toast(`You are on the latest version (${VERSION})`);
+      }
+    } catch (e) {
+      if (manual) toast('Could not check for updates');
+    }
   }
 
   // --- login ------------------------------------------------------------------
@@ -4415,6 +4518,7 @@
       <div class="ehx-group-title">About</div>
       <div class="ehx-group">
         ${settingRow('E-Hentai App', 'JHenTai-inspired mobile shell', `<span class="ehx-dim" style="font-size:12px">v${VERSION}</span>`)}
+        ${settingRow('Check for updates', 'Reads the version on the main branch', `<button class="ehx-chip" data-cmd="check-update">Check</button>`)}
         ${settingRow('Reference app', 'JHenTai by jiangtian616', `<a class="ehx-chip" href="https://github.com/jiangtian616/JHenTai" target="_blank" rel="noopener">GitHub</a>`)}
         ${settingRow('User agent', ua.slice(0, 46) + (ua.length > 46 ? '…' : ''), '')}
       </div>
@@ -4456,6 +4560,7 @@
       else if (c === 'login') openLoginSheet();
       else if (c === 'logout') logout();
       else if (c === 'original') location.href = originalUrl(currentUrl());
+      else if (c === 'check-update') checkForUpdate({ manual: true });
       else if (c === 'clear-cache') { clearRuntimeCaches(); toast('Page cache cleared'); }
       else if (c === 'clear-progress') {
         confirmSheet('Clear reading progress?', 'This removes saved page positions for every gallery on this device.', { ok: 'Clear', danger: true })
@@ -4655,6 +4760,12 @@
         initialDoc,
         restore: false,
       }).catch(showError);
+
+      // Check the auto-update source in the background. The result is cached
+      // for 12 hours; a newer version shows a dismissible in-app banner.
+      setTimeout(() => {
+        if (navigator.onLine !== false) checkForUpdate();
+      }, 3500);
 
       // Keep the theme in sync with iOS while "Auto" is selected.
       try {
