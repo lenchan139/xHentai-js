@@ -2,7 +2,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.12';
+  const VERSION = '1.0.13';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -283,7 +283,7 @@
     if (route.name === 'settings' || route.name === 'history' || route.name === 'toplist') return 'more';
     if (route.kind === 'popular') return 'popular';
     if (route.kind === 'favorites.php') return 'favorites';
-    if (route.kind === 'watched') return 'more';
+    if (route.kind === 'watched') return 'watched';
     const q = parseQuery(url || location.href);
     if (q.get('f_search')) return 'search';
     return 'home';

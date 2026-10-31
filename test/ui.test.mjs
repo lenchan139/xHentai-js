@@ -149,7 +149,13 @@ try {
   console.log('\nHome / list');
   ok('app shell rendered', await count('#ehx-app') === 1);
   ok('25 gallery cards', await count('.ehx-card') === 25, String(await count('.ehx-card')));
-  ok('bottom tab bar has 5 tabs', await count('.ehx-tab') === 5);
+  ok('bottom tab bar has 6 tabs', await count('.ehx-tab') === 6);
+  ok('Watched tab present', await count('.ehx-tab[href="/watched"]') === 1);
+  await page.click('.ehx-tab[href="/watched"]');
+  await page.waitForFunction(() => location.pathname === '/watched', { timeout: 6000 });
+  ok('Watched tab active', await count('.ehx-tab.ehx-active[href="/watched"]') === 1);
+  await page.click('.ehx-tab[href="/"]');
+  await page.waitForSelector('.ehx-card', { timeout: 6000 });
   ok('brand shows E-Hentai', (await txt('.ehx-brandname')) === 'E-Hentai');
   ok('category chips', await count('.ehx-chips .ehx-chip') > 10);
   ok('first card title', (await txt('.ehx-card-title')).length > 3);

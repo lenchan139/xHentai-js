@@ -71,7 +71,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **75 parser / 66 UI** assertions, both suites must pass
+- Current expectation: **75 parser / 68 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note

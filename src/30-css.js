@@ -258,6 +258,7 @@
     transition:color .15s,background .15s;
   }
   .ehx-tab .ehx-i{width:23px;height:23px}
+  .ehx-tab span{white-space:nowrap}
   .ehx-tab.ehx-active{color:var(--accent)}
   .ehx-tab:active{background:var(--card2)}
   .ehx-tab.ehx-active .ehx-i{filter:drop-shadow(0 0 8px rgba(208,188,255,.45))}

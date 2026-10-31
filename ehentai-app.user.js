@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.0.12
+// @version      1.0.13
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.0.12';
+  const VERSION = '1.0.13';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -317,7 +317,7 @@
     if (route.name === 'settings' || route.name === 'history' || route.name === 'toplist') return 'more';
     if (route.kind === 'popular') return 'popular';
     if (route.kind === 'favorites.php') return 'favorites';
-    if (route.kind === 'watched') return 'more';
+    if (route.kind === 'watched') return 'watched';
     const q = parseQuery(url || location.href);
     if (q.get('f_search')) return 'search';
     return 'home';
@@ -636,6 +636,7 @@
     transition:color .15s,background .15s;
   }
   .ehx-tab .ehx-i{width:23px;height:23px}
+  .ehx-tab span{white-space:nowrap}
   .ehx-tab.ehx-active{color:var(--accent)}
   .ehx-tab:active{background:var(--card2)}
   .ehx-tab.ehx-active .ehx-i{filter:drop-shadow(0 0 8px rgba(208,188,255,.45))}
@@ -1641,6 +1642,7 @@
     { id: 'home', icon: 'home', label: 'Home', href: '/' },
     { id: 'popular', icon: 'popular', label: 'Popular', href: '/popular' },
     { id: 'favorites', icon: 'heart', label: 'Favorites', href: '/favorites.php' },
+    { id: 'watched', icon: 'eye', label: 'Watched', href: '/watched' },
     { id: 'search', icon: 'search', label: 'Search', href: '/#ehx-search' },
     { id: 'more', icon: 'menu', label: 'More', act: 'drawer' },
   ];
