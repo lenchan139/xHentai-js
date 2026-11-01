@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.1
+// @version      1.2.2
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.1';
+  const VERSION = '1.2.2';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1322,8 +1322,13 @@
           signal: ctrl.signal,
         });
         if (!res.ok) {
+          let bodyText = '';
+          try {
+            bodyText = (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500);
+          } catch { /* no body */ }
           const err = new Error('HTTP ' + res.status);
           err.status = res.status;
+          err.bodyText = bodyText;
           throw err;
         }
         const html = await res.text();
@@ -1572,9 +1577,16 @@
       favLinks.push({ href, label });
     }
 
+    const bodyText = doc.documentElement ? text(doc.body) : '';
+    const error = !items.length && bodyText && bodyText.length < 500
+      && /not found|invalid|error|removed|unavailable|no hits|no results/i.test(bodyText)
+      ? bodyText
+      : '';
+
     return {
       items,
       favLinks,
+      error,
       next: findNav(doc, 'next'),
       prev: findNav(doc, 'prev'),
       title: text(doc.querySelector('h1.ih, #toppane h1.ih, #toppane h1, h1.ih')),
@@ -1785,6 +1797,7 @@
       thumbs,
       thumbPages,
       gpc,
+      error: title ? '' : (doc.documentElement ? (text(doc.body) || text(doc.documentElement)) : '').slice(0, 600),
       thumbsPerPage,
       thumbRange: rangeM ? { from: num(rangeM[1]), to: num(rangeM[2]), total: num(rangeM[3]) } : null,
       comments,
@@ -2205,7 +2218,8 @@
     console.error('[EHX]', err);
     const status = err && err.status;
     let msg = 'Something went wrong while loading this page.';
-    if (status === 509) msg = 'E-Hentai is rate-limiting requests. Wait a minute, then try again.';
+    if (err && err.bodyText) msg = err.bodyText;
+    else if (status === 509) msg = 'E-Hentai is rate-limiting requests. Wait a minute, then try again.';
     else if (status === 403) msg = 'Access denied. You may need to log in.';
     else if (status === 404) msg = 'This page does not exist.';
     else if (err && err.message && /failed to fetch|load failed|network connection|network request/i.test(err.message)) {
@@ -3219,7 +3233,7 @@
     const weak = !!(data && data.items.length && data.items.every((g) => !g.cover));
     const emptyHint = !!(data && data.items.length === 0 && !data.loggedOut && !data.sad &&
       /no hits|no results|no favorites|nothing found|you have no/i.test((initialDoc && initialDoc.body && initialDoc.body.textContent) || ''));
-    const needsFetch = !data || (!data.items.length && !data.loggedOut && !data.sad && !emptyHint) || (weak && route.kind !== 'favorites.php');
+    const needsFetch = !data || (!data.items.length && !data.loggedOut && !data.sad && !data.error && !emptyHint) || (weak && route.kind !== 'favorites.php');
     if (needsFetch) {
       const loadingText = isFav ? 'Loading favorites…' : q ? 'Searching…' : 'Loading galleries…';
       app.main.innerHTML = chipsHtml(route, url, data) +
@@ -3247,6 +3261,16 @@
         ? 'ExHentai is showing the sad panda because this browser has no valid ExHentai cookies. Use Cookie login below.'
         : 'This page requires an E-Hentai account.';
       app.main.innerHTML = chipsHtml(route, url, data) + loginCardHtml(msg, { full: true });
+      return;
+    }
+
+    if (data.error) {
+      app.main.innerHTML = chipsHtml(route, url, data) + emptyState(
+        'Could not load this list',
+        esc(data.error),
+        `<button class="ehx-btn" data-act="original">Open original site</button>`,
+        'info',
+      );
       return;
     }
 
@@ -3292,7 +3316,14 @@
         <div class="ehx-spinner"></div>
       </div>
       <div id="ehx-sentinel" style="height:1px"></div>
-      ${items.length === 0 ? emptyState(q ? 'No results' : 'Nothing here', q ? `No galleries matched <b>${esc(q)}</b>.` : 'This list is empty.', `<button class="ehx-btn" data-act="original">Open original site</button>`, 'search') : ''}`;
+      ${items.length === 0 ? emptyState(
+        isFav ? 'No more favorites' : q ? 'No results' : 'Nothing here',
+        isFav
+          ? 'This favorites page is empty, or the page cursor has expired.'
+          : q ? `No galleries matched <b>${esc(q)}</b>.` : 'This list is empty.',
+        `<button class="ehx-btn" data-act="original">Open original site</button>`,
+        'search',
+      ) : ''}`;
 
     const grid = $('#ehx-gallery-grid');
     const footer = $('#ehx-list-footer');
@@ -3588,7 +3619,8 @@
     }
 
     if (!data.title) {
-      app.main.innerHTML = emptyState('Gallery unavailable', 'This gallery may have been removed or expunged.', `<button class="ehx-btn" data-act="original">Open original site</button>`, 'info');
+      const msg = data.error || 'This gallery may have been removed or expunged.';
+      app.main.innerHTML = emptyState('Gallery unavailable', esc(msg), `<button class="ehx-btn" data-act="original">Open original site</button>`, 'info');
       return;
     }
 

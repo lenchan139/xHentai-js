@@ -181,6 +181,14 @@ console.log('\nparseDetail (E-Hentai normal thumbnails)');
   ok('thumbsPerPage = 20', d.thumbsPerPage === 20, String(d.thumbsPerPage));
 }
 
+console.log('\nparseDetail (missing gallery message)');
+{
+  const doc = parseHTML('<html><body>Gallery not found. If you just added this gallery, you may have to wait a short while before it becomes available.</body></html>').document;
+  const d = P.parseDetail(doc, 'https://e-hentai.org/g/999999999/abcdef1234/');
+  ok('no title', !d.title);
+  ok('site error message kept', /Gallery not found/.test(d.error), d.error);
+}
+
 console.log('\nparseDetail (page 2 of a big gallery)');
 {
   const base = 'https://e-hentai.org/g/4291745/d068af7fe3/?p=1';

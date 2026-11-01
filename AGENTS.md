@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **88 parser / 92 UI** assertions, both suites must pass
+- Current expectation: **90 parser / 93 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -165,6 +165,9 @@ stale async renders after the user navigates again.
     is the half-star variant. Values are stored on the 0–10 scale.
   - List tags include `.gt`/`.gtw`/`.gtl` and carry `watched`, but live list HTML
     normally has no `.gtw`; watched highlighting is a detail-page feature.
+  - `parseList` returns `error` for short error bodies (not found/invalid/removed)
+    and the list page shows it; an empty favorites page gets a “No more favorites”
+    state.
   - `language` picks the first real language tag (skipping `translated`/`rewrite`);
     `langCode()` maps it to a short code (JP/EN/CN/…) for the cover badge.
   - The app requests Compact (`inline_set=dm_l`) because it does **not** set a
@@ -172,7 +175,9 @@ stale async renders after the user navigates again.
     side effect we avoid.
 - `parseDetail(doc, base)` reads `#gn`/`#gj`, `#gd1` cover (img or background
   style), `#gdd` info table, `#taglist`, `#gdt` thumbnails, `.ptt` thumbnail page
-  links and inline `apikey`/`apiuid`. It also returns `thumbsPerPage`: 40 when
+  links and inline `apikey`/`apiuid`. When the page has no title it returns the
+  body text as `error` (e.g. “Gallery not found…”), which the detail page shows
+  instead of a generic message. It also returns `thumbsPerPage`: 40 when
   `#gdt` is `gt100` (Small thumbnails, 100px) and 20 when `gt200` (Normal/Auto,
   200px); a first page with `Showing 1 - N` refines it.
   - Thumbnail markup has two shapes: `<a><div style="background:url(...)"></div></a>`
@@ -324,6 +329,16 @@ migrated there. Cookies stay in the browser's cookie store.
   unavailable.
 - `clearMetadataCaches()` clears all three stores; called by Clear page cache
   and logout.
+
+### Error pages
+
+- `fetchDoc` attaches the stripped HTTP error body as `err.bodyText`; `showError`
+  prefers it over the generic HTTP status message.
+- `parseList`/`parseDetail` return a site error string when the page has no
+  galleries/title. The list/detail pages render it in an empty state with an
+  **Original site** action.
+- A missing gallery (plain “Gallery not found…” body) and an empty favorites
+  cursor both get a readable message.
 
 ### Persistent cache (`src/40-http-parsers.js`, `src/70-list.js`)
 

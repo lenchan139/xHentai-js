@@ -225,7 +225,8 @@
     }
 
     if (!data.title) {
-      app.main.innerHTML = emptyState('Gallery unavailable', 'This gallery may have been removed or expunged.', `<button class="ehx-btn" data-act="original">Open original site</button>`, 'info');
+      const msg = data.error || 'This gallery may have been removed or expunged.';
+      app.main.innerHTML = emptyState('Gallery unavailable', esc(msg), `<button class="ehx-btn" data-act="original">Open original site</button>`, 'info');
       return;
     }
 

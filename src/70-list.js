@@ -246,7 +246,7 @@
     const weak = !!(data && data.items.length && data.items.every((g) => !g.cover));
     const emptyHint = !!(data && data.items.length === 0 && !data.loggedOut && !data.sad &&
       /no hits|no results|no favorites|nothing found|you have no/i.test((initialDoc && initialDoc.body && initialDoc.body.textContent) || ''));
-    const needsFetch = !data || (!data.items.length && !data.loggedOut && !data.sad && !emptyHint) || (weak && route.kind !== 'favorites.php');
+    const needsFetch = !data || (!data.items.length && !data.loggedOut && !data.sad && !data.error && !emptyHint) || (weak && route.kind !== 'favorites.php');
     if (needsFetch) {
       const loadingText = isFav ? 'Loading favorites…' : q ? 'Searching…' : 'Loading galleries…';
       app.main.innerHTML = chipsHtml(route, url, data) +
@@ -274,6 +274,16 @@
         ? 'ExHentai is showing the sad panda because this browser has no valid ExHentai cookies. Use Cookie login below.'
         : 'This page requires an E-Hentai account.';
       app.main.innerHTML = chipsHtml(route, url, data) + loginCardHtml(msg, { full: true });
+      return;
+    }
+
+    if (data.error) {
+      app.main.innerHTML = chipsHtml(route, url, data) + emptyState(
+        'Could not load this list',
+        esc(data.error),
+        `<button class="ehx-btn" data-act="original">Open original site</button>`,
+        'info',
+      );
       return;
     }
 
@@ -319,7 +329,14 @@
         <div class="ehx-spinner"></div>
       </div>
       <div id="ehx-sentinel" style="height:1px"></div>
-      ${items.length === 0 ? emptyState(q ? 'No results' : 'Nothing here', q ? `No galleries matched <b>${esc(q)}</b>.` : 'This list is empty.', `<button class="ehx-btn" data-act="original">Open original site</button>`, 'search') : ''}`;
+      ${items.length === 0 ? emptyState(
+        isFav ? 'No more favorites' : q ? 'No results' : 'Nothing here',
+        isFav
+          ? 'This favorites page is empty, or the page cursor has expired.'
+          : q ? `No galleries matched <b>${esc(q)}</b>.` : 'This list is empty.',
+        `<button class="ehx-btn" data-act="original">Open original site</button>`,
+        'search',
+      ) : ''}`;
 
     const grid = $('#ehx-gallery-grid');
     const footer = $('#ehx-list-footer');

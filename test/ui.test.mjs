@@ -70,6 +70,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (u.pathname === '/__resetfav') { favRequests = 0; res.writeHead(204); res.end(); return; }
+    if (u.pathname === '/g/999999999/abcdef1234/') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('Gallery not found. If you just added this gallery, you may have to wait a short while before it becomes available.');
+      return;
+    }
     if (u.pathname === '/__tagsuggest' && req.method === 'POST') {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ tags: { 1: { ns: 'female', tn: 'teacher' }, 2: { ns: 'male', tn: 'teacher' } } }));
@@ -175,6 +180,7 @@ let stepName = '';
 const step = (n) => { stepName = n; console.log('   · ' + n); };
 const txt = (sel) => page.$eval(sel, (el) => el.textContent.trim()).catch(() => '');
 const count = (sel) => page.$$eval(sel, (els) => els.length).catch(() => 0);
+const clickSel = (sel) => page.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, sel);
 
 try {
   await page.evaluateOnNewDocument(`
@@ -382,7 +388,7 @@ try {
   await page.evaluate(() => document.querySelector('[data-act="drawer"]').click());
   await page.waitForSelector('.ehx-drawer.ehx-open', { timeout: 4000 });
   await new Promise((r) => setTimeout(r, 380));
-  await page.click('.ehx-drawer-item[href="/#ehx-settings"]');
+  await clickSel('.ehx-drawer-item[href="/#ehx-settings"]');
   await page.waitForSelector('[data-set="theme"]', { timeout: 6000 });
   await new Promise((r) => setTimeout(r, 400));
   ok('settings page rendered', await count('[data-set="theme"]') === 3);
@@ -402,7 +408,7 @@ try {
   await page.evaluate(() => document.querySelector('[data-act="drawer"]').click());
   await page.waitForSelector('.ehx-drawer.ehx-open', { timeout: 4000 });
   await new Promise((r) => setTimeout(r, 380));
-  await page.click('.ehx-drawer-item[href="/#ehx-history"]');
+  await clickSel('.ehx-drawer-item[href="/#ehx-history"]');
   await page.waitForSelector('.ehx-card', { timeout: 6000 });
   await new Promise((r) => setTimeout(r, 500));
   ok('history has an entry', await count('.ehx-card') >= 1, String(await count('.ehx-card')));
@@ -416,14 +422,14 @@ try {
   ok('paged reader active', await count('.ehx-reader.ehx-paged') === 1);
   ok('3 paged slides', await count('.ehx-reader .ehx-rpage') === 3, String(await count('.ehx-reader .ehx-rpage')));
   await page.evaluate(() => document.querySelector('.ehx-rchrome').classList.remove('ehx-hidden'));
-  await page.click('[data-r="back"]');
+  await page.evaluate(() => document.querySelector('[data-r="back"]').click());
   await page.waitForSelector('.ehx-card', { timeout: 8000 });
 
   console.log('\nLogged-out favorites + login sheet');
   await page.evaluate(() => document.querySelector('[data-act="drawer"]').click());
   await page.waitForSelector('.ehx-drawer.ehx-open', { timeout: 4000 });
   await new Promise((r) => setTimeout(r, 380));
-  await page.click('.ehx-drawer-item[href="/favorites.php"]');
+  await clickSel('.ehx-drawer-item[href="/favorites.php"]');
   await page.waitForSelector('.ehx-login', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 420));
   ok('login card shown', await count('.ehx-login') === 1);
@@ -438,7 +444,7 @@ try {
   await page.evaluate(() => document.querySelector('[data-act="drawer"]').click());
   await page.waitForSelector('.ehx-drawer.ehx-open', { timeout: 4000 });
   await new Promise((r) => setTimeout(r, 380));
-  await page.click('.ehx-drawer-item[href="/toplist.php"]');
+  await clickSel('.ehx-drawer-item[href="/toplist.php"]');
   await page.waitForSelector('.ehx-ranklist', { timeout: 8000 });
   ok('toplist rendered', await count('.ehx-rankrow') > 5, String(await count('.ehx-rankrow')));
   ok('toplist chips', await count('.ehx-chips .ehx-chip') > 1);
@@ -536,6 +542,11 @@ try {
   await page.waitForFunction(() => location.search.includes('p=1'), { timeout: 5000 });
   await page.waitForFunction(() => document.querySelector('.ehx-thumbctl .ehx-grow')?.textContent.includes('3 / 5'), { timeout: 5000 });
   ok('next sheet starts at page 41', /-41$/.test(await page.$eval('.ehx-thumb', (a) => a.getAttribute('href'))), await page.$eval('.ehx-thumb', (a) => a.getAttribute('href')));
+
+  console.log('\nMissing gallery message');
+  await page.goto(BASE + '/g/999999999/abcdef1234/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.ehx-empty', { timeout: 8000 });
+  ok('site error message shown', (await txt('.ehx-empty p')).includes('Gallery not found'), await txt('.ehx-empty p'));
 
   console.log('\nConsole/page errors');
   ok('no uncaught errors', errors.length === 0, errors.slice(0, 5).join(' | '));

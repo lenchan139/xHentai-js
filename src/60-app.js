@@ -270,7 +270,8 @@
     console.error('[EHX]', err);
     const status = err && err.status;
     let msg = 'Something went wrong while loading this page.';
-    if (status === 509) msg = 'E-Hentai is rate-limiting requests. Wait a minute, then try again.';
+    if (err && err.bodyText) msg = err.bodyText;
+    else if (status === 509) msg = 'E-Hentai is rate-limiting requests. Wait a minute, then try again.';
     else if (status === 403) msg = 'Access denied. You may need to log in.';
     else if (status === 404) msg = 'This page does not exist.';
     else if (err && err.message && /failed to fetch|load failed|network connection|network request/i.test(err.message)) {
