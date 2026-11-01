@@ -189,6 +189,20 @@ console.log('\nparseDetail (missing gallery message)');
   ok('site error message kept', /Gallery not found/.test(d.error), d.error);
 }
 
+console.log('\nparseDetail (copyright/unavailable page)');
+{
+  const doc = load('gallery-copyright.html');
+  const d = P.parseDetail(doc, 'https://exhentai.org/g/2723308/bbe94c10b2/');
+  ok('no title', !d.title);
+  ok('copyright message kept', /copyright claim by Irodori Comics/.test(d.error), d.error);
+  ok('message has no script text', !/popUp|window\.open|function/.test(d.error), d.error);
+  ok('message skips the redirect notice', !/redirected to the front page/.test(d.error), d.error);
+
+  const l = P.parseList(doc, 'https://exhentai.org/g/2723308/bbe94c10b2/');
+  ok('parseList keeps the copyright message', /copyright claim/.test(l.error), l.error);
+  ok('parseList message has no script text', !/popUp|window\.open|function/.test(l.error), l.error);
+}
+
 console.log('\nparseDetail (page 2 of a big gallery)');
 {
   const base = 'https://e-hentai.org/g/4291745/d068af7fe3/?p=1';

@@ -49,6 +49,19 @@
     }
   }
 
+  // The site's "gallery unavailable" page (copyright/removed) schedules a
+  // redirect to the front page after 3s. Drop only that timer so the error
+  // message stays readable instead of disappearing into the front page.
+  try {
+    if (/^\/g\/\d+\//.test(location.pathname)) {
+      const nativeSetTimeout = window.setTimeout;
+      window.setTimeout = function (fn, delay, ...args) {
+        if (typeof fn === 'string' && /gotonext\s*\(/.test(fn)) return 0;
+        return nativeSetTimeout.call(window, fn, delay, ...args);
+      };
+    }
+  } catch { /* noop */ }
+
   function boot() {
     if (!isAppRoute(location.href)) {
       bootStyle(false);

@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **90 parser / 93 UI** assertions, both suites must pass
+- Current expectation: **96 parser / 98 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -333,7 +333,15 @@ migrated there. Cookies stay in the browser's cookie store.
 ### Error pages
 
 - `fetchDoc` attaches the stripped HTTP error body as `err.bodyText`; `showError`
-  prefers it over the generic HTTP status message.
+  prefers it over the generic HTTP status message. HTML error bodies are parsed
+  and only the `.d p` text is kept, so inline scripts never leak into the message.
+- The copyright/removed page is a 404 with `.d` (“This gallery is unavailable
+  due to a copyright claim…”). `parseDetail` returns that first paragraph as
+  `error`; the detail page renders it without refetching when the initial
+  document already carries the message.
+- That page schedules `setTimeout("gotonext()", 3000)` to the front page. At
+  document-start on `/g/…` the boot code wraps `setTimeout` and drops only that
+  string timer, so the message is not replaced by a redirect.
 - `parseList`/`parseDetail` return a site error string when the page has no
   galleries/title. The list/detail pages render it in an empty state with an
   **Original site** action.

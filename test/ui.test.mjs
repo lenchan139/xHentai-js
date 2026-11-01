@@ -75,6 +75,13 @@ const server = http.createServer(async (req, res) => {
       res.end('Gallery not found. If you just added this gallery, you may have to wait a short while before it becomes available.');
       return;
     }
+    if (u.pathname === '/g/2723308/bbe94c10b2/') {
+      let html = await fsp.readFile(path.join(raw, 'gallery-copyright.html'), 'utf8');
+      html = html.replace(/https?:\/\/(www\.)?(e-hentai|exhentai)\.org/g, BASE);
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(html);
+      return;
+    }
     if (u.pathname === '/__tagsuggest' && req.method === 'POST') {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ tags: { 1: { ns: 'female', tn: 'teacher' }, 2: { ns: 'male', tn: 'teacher' } } }));
@@ -547,6 +554,22 @@ try {
   await page.goto(BASE + '/g/999999999/abcdef1234/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-empty', { timeout: 8000 });
   ok('site error message shown', (await txt('.ehx-empty p')).includes('Gallery not found'), await txt('.ehx-empty p'));
+
+  console.log('\nCopyright/unavailable gallery');
+  await page.goto(BASE + '/g/2723308/bbe94c10b2/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.ehx-empty', { timeout: 8000 });
+  const copyrightMsg = await txt('.ehx-empty p');
+  ok('copyright message shown', copyrightMsg.includes('copyright claim by Irodori Comics'), copyrightMsg);
+  ok('copyright message has no script text', !/popUp|window\.open|function/.test(copyrightMsg), copyrightMsg);
+  await new Promise((r) => setTimeout(r, 3600));
+  ok('copyright page does not auto-redirect', (await page.evaluate(() => location.pathname)) === '/g/2723308/bbe94c10b2/', await page.evaluate(() => location.href));
+
+  console.log('\nCopyright/unavailable via in-app navigation');
+  await page.evaluate(() => window.__EHENTAI_APP__.navigate('/g/2723308/bbe94c10b2/'));
+  await page.waitForSelector('.ehx-error .ehx-empty p', { timeout: 8000 });
+  const navMsg = await txt('.ehx-error .ehx-empty p');
+  ok('HTTP error body shown', navMsg.includes('copyright claim'), navMsg);
+  ok('HTTP error body has no script text', !/popUp|window\.open|function/.test(navMsg), navMsg);
 
   console.log('\nConsole/page errors');
   ok('no uncaught errors', errors.length === 0, errors.slice(0, 5).join(' | '));

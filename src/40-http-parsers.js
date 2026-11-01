@@ -166,7 +166,13 @@
         if (!res.ok) {
           let bodyText = '';
           try {
-            bodyText = (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500);
+            const bodyHtml = await res.text();
+            const errDoc = new DOMParser().parseFromString(bodyHtml, 'text/html');
+            const d = errDoc.querySelector('.d');
+            bodyText = d
+              ? text(d.querySelector('p') || d)
+              : bodyHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            bodyText = bodyText.slice(0, 500);
           } catch { /* no body */ }
           const err = new Error('HTTP ' + res.status);
           err.status = res.status;
@@ -419,7 +425,8 @@
       favLinks.push({ href, label });
     }
 
-    const bodyText = doc.documentElement ? text(doc.body) : '';
+    const bodyEl = doc.querySelector('.d');
+    const bodyText = bodyEl ? text(bodyEl.querySelector('p') || bodyEl) : (doc.documentElement ? text(doc.body) : '');
     const error = !items.length && bodyText && bodyText.length < 500
       && /not found|invalid|error|removed|unavailable|no hits|no results/i.test(bodyText)
       ? bodyText
@@ -639,7 +646,11 @@
       thumbs,
       thumbPages,
       gpc,
-      error: title ? '' : (doc.documentElement ? (text(doc.body) || text(doc.documentElement)) : '').slice(0, 600),
+      error: title ? '' : (() => {
+        const d = doc.querySelector('.d');
+        const msg = d ? text(d.querySelector('p') || d) : (doc.documentElement ? (text(doc.body) || text(doc.documentElement)) : '');
+        return msg.slice(0, 600);
+      })(),
       thumbsPerPage,
       thumbRange: rangeM ? { from: num(rangeM[1]), to: num(rangeM[2]), total: num(rangeM[3]) } : null,
       comments,

@@ -212,6 +212,13 @@
       try { data = parseDetail(initialDoc, fetchUrl); } catch (e) { console.warn(e); }
     }
 
+    // A site error page (missing/removed/copyright) has no gallery title.
+    // Show its message directly instead of refetching the same URL.
+    if (data && !data.title && data.error) {
+      app.main.innerHTML = emptyState('Gallery unavailable', esc(data.error), `<button class="ehx-btn" data-act="original">Open original site</button>`, 'info');
+      return;
+    }
+
     if (!data || !data.title) {
       const rec = await fetchDoc(fetchUrl, { force: !!opts.force, priority: true });
       if (opts.seq && opts.seq !== app.navSeq) return;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.2
+// @version      1.2.3
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.2';
+  const VERSION = '1.2.3';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1324,7 +1324,13 @@
         if (!res.ok) {
           let bodyText = '';
           try {
-            bodyText = (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500);
+            const bodyHtml = await res.text();
+            const errDoc = new DOMParser().parseFromString(bodyHtml, 'text/html');
+            const d = errDoc.querySelector('.d');
+            bodyText = d
+              ? text(d.querySelector('p') || d)
+              : bodyHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            bodyText = bodyText.slice(0, 500);
           } catch { /* no body */ }
           const err = new Error('HTTP ' + res.status);
           err.status = res.status;
@@ -1577,7 +1583,8 @@
       favLinks.push({ href, label });
     }
 
-    const bodyText = doc.documentElement ? text(doc.body) : '';
+    const bodyEl = doc.querySelector('.d');
+    const bodyText = bodyEl ? text(bodyEl.querySelector('p') || bodyEl) : (doc.documentElement ? text(doc.body) : '');
     const error = !items.length && bodyText && bodyText.length < 500
       && /not found|invalid|error|removed|unavailable|no hits|no results/i.test(bodyText)
       ? bodyText
@@ -1797,7 +1804,11 @@
       thumbs,
       thumbPages,
       gpc,
-      error: title ? '' : (doc.documentElement ? (text(doc.body) || text(doc.documentElement)) : '').slice(0, 600),
+      error: title ? '' : (() => {
+        const d = doc.querySelector('.d');
+        const msg = d ? text(d.querySelector('p') || d) : (doc.documentElement ? (text(doc.body) || text(doc.documentElement)) : '');
+        return msg.slice(0, 600);
+      })(),
       thumbsPerPage,
       thumbRange: rangeM ? { from: num(rangeM[1]), to: num(rangeM[2]), total: num(rangeM[3]) } : null,
       comments,
@@ -3604,6 +3615,13 @@
         return;
       }
       try { data = parseDetail(initialDoc, fetchUrl); } catch (e) { console.warn(e); }
+    }
+
+    // A site error page (missing/removed/copyright) has no gallery title.
+    // Show its message directly instead of refetching the same URL.
+    if (data && !data.title && data.error) {
+      app.main.innerHTML = emptyState('Gallery unavailable', esc(data.error), `<button class="ehx-btn" data-act="original">Open original site</button>`, 'info');
+      return;
     }
 
     if (!data || !data.title) {
@@ -5469,6 +5487,19 @@
       if (load) load.remove();
     }
   }
+
+  // The site's "gallery unavailable" page (copyright/removed) schedules a
+  // redirect to the front page after 3s. Drop only that timer so the error
+  // message stays readable instead of disappearing into the front page.
+  try {
+    if (/^\/g\/\d+\//.test(location.pathname)) {
+      const nativeSetTimeout = window.setTimeout;
+      window.setTimeout = function (fn, delay, ...args) {
+        if (typeof fn === 'string' && /gotonext\s*\(/.test(fn)) return 0;
+        return nativeSetTimeout.call(window, fn, delay, ...args);
+      };
+    }
+  } catch { /* noop */ }
 
   function boot() {
     if (!isAppRoute(location.href)) {
