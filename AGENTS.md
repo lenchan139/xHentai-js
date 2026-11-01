@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **88 parser / 91 UI** assertions, both suites must pass
+- Current expectation: **88 parser / 92 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -213,6 +213,8 @@ stale async renders after the user navigates again.
   inserts `namespace:"tag name"`.
 - `openCalendarSheet()` sets `seek=YYYY-MM-DD` on the current list/search URL.
   E-Hentai accepts `seek` on favorites, home, search, tag and watched pages.
+  The oldest reliable seek date is **2007-03-21** (it returns the 2007-03-20
+  oldest page); earlier values are ignored by the site and are clamped.
 
 ### Scroll-to-top FAB (`src/60-app.js`)
 

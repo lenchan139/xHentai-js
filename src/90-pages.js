@@ -60,22 +60,25 @@
     }
   }
 
+  const OLDEST_SEEK_DATE = '2007-03-21';
+
   function openCalendarSheet(baseUrl) {
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const s = openSheet({
       title: 'Jump to date',
       body: `<div class="ehx-field"><label class="ehx-label">Date</label>
-        <input class="ehx-input" id="ehx-calendar-date" type="date" value="${today}" min="2007-01-01" max="${today}"></div>
-        <p style="font-size:11.5px;color:var(--muted2);margin:0">The list starts at this date. Scroll down for newer galleries.</p>`,
+        <input class="ehx-input" id="ehx-calendar-date" type="date" value="${today}" min="${OLDEST_SEEK_DATE}" max="${today}"></div>
+        <p style="font-size:11.5px;color:var(--muted2);margin:0">Oldest available: ${OLDEST_SEEK_DATE}. The list starts at this date; scroll down for newer galleries.</p>`,
       footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="go">Go</button>`,
     });
     s.sheet.addEventListener('click', (e) => {
       if (e.target.closest('[data-x="cancel"]')) { s.close(); return; }
       if (!e.target.closest('[data-x="go"]')) return;
       const input = s.sheet.querySelector('#ehx-calendar-date');
-      const date = input && input.value;
+      let date = input && input.value;
       if (!date) { toast('Choose a date'); return; }
+      if (date < OLDEST_SEEK_DATE) date = OLDEST_SEEK_DATE;
       const u = new URL(baseUrl || currentUrl(), location.href);
       for (const k of ['next', 'prev', 'p', 'seek']) u.searchParams.delete(k);
       u.searchParams.set('seek', date);

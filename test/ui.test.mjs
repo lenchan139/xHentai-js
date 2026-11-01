@@ -371,6 +371,7 @@ try {
   console.log('\nCalendar jump');
   await page.evaluate(() => document.querySelector('[data-act="calendar"]').click());
   await page.waitForSelector('#ehx-calendar-date', { timeout: 4000 });
+  ok('calendar min is the oldest date', await page.$eval('#ehx-calendar-date', (el) => el.min) === '2007-03-21');
   await page.$eval('#ehx-calendar-date', (el) => { el.value = '2026-10-01'; });
   await page.evaluate(() => document.querySelector('[data-x="go"]').click());
   await page.waitForFunction(() => location.search.includes('seek=2026-10-01'), { timeout: 6000 });

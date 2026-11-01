@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.0%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.1/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.1%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.1/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -46,7 +46,8 @@ plain JavaScript running in your own browser.
   recent searches. Searches stay in the current tab (e.g. Favorites searches only
   Favorites).
 - **Calendar jump** — next to the search field and in list top bars, pick a date
-  and jump to `?seek=YYYY-MM-DD`; scroll down for newer galleries.
+  and jump to `?seek=YYYY-MM-DD`; scroll down for newer galleries. The picker’s
+  minimum is the oldest usable date, **2007-03-21**.
 - **Scroll-to-top button** — a floating button after you scroll; left by default,
   switchable to right or off in Settings.
 - **Library** — local reading history, resume positions, clear history/progress/
@@ -67,15 +68,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.2.0 (cache-free):**
+**Direct install snapshot — v1.2.1 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.1/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.2.0](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
+- [Install v1.2.1](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.1/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -93,7 +94,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.2.0 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
+3. Open the [v1.2.1 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.1/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -104,7 +105,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.2.0 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.0/ehentai-app.user.js)
+   On My iPhone), then save the [v1.2.1 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.1/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
