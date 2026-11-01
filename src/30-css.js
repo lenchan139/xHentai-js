@@ -51,9 +51,9 @@
     --shimmer:#e9e1f2;
     --tag-bg:#ece6f3;
     --tag-fg:#4a4354;
-    --tag-watched-bg:#dbeafe;
-    --tag-watched-fg:#1d4ed8;
-    --tag-watched-line:#93c5fd;
+    --tag-watched-bg:#cfe3ff;
+    --tag-watched-fg:#0b47a1;
+    --tag-watched-line:#7db4ff;
     --shadow:0 8px 24px rgba(50,20,90,.12);
   }
   *,*::before,*::after{box-sizing:border-box}

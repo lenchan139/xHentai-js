@@ -82,6 +82,13 @@ const server = http.createServer(async (req, res) => {
       res.end(html);
       return;
     }
+    if (u.pathname === '/mytags') {
+      let html = await fsp.readFile(path.join(raw, 'mytags.html'), 'utf8');
+      html = html.replace(/https?:\/\/(www\.)?(e-hentai|exhentai)\.org/g, BASE);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(html);
+      return;
+    }
     if (u.pathname === '/__tagsuggest' && req.method === 'POST') {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ tags: { 1: { ns: 'female', tn: 'teacher' }, 2: { ns: 'male', tn: 'teacher' } } }));
@@ -204,6 +211,26 @@ try {
   ok('25 gallery cards', await count('.ehx-card') === 25, String(await count('.ehx-card')));
   ok('bottom tab bar has 5 tabs', await count('.ehx-tab') === 5);
   ok('Watched tab present', await count('.ehx-tab[href="/watched"]') === 1);
+
+  console.log('\nWatched tag highlighting');
+  const watchedTags = await page.evaluate(() => window.__EHENTAI_APP__.refreshWatchedTags());
+  ok('My Tags parsed', Array.isArray(watchedTags) && watchedTags.includes('language:portuguese'), JSON.stringify(watchedTags));
+  await page.waitForFunction(() => document.querySelectorAll('.ehx-tag.ehx-tag-watched').length > 0, { timeout: 6000 });
+  ok('list tags use the watched set', (await count('.ehx-tag.ehx-tag-watched')) > 0, String(await count('.ehx-tag.ehx-tag-watched')));
+  const tagColors = await page.evaluate(() => {
+    const w = document.querySelector('.ehx-tag.ehx-tag-watched');
+    const n = document.querySelector('.ehx-tag:not(.ehx-tag-watched)');
+    return {
+      watched: w ? getComputedStyle(w).backgroundColor : '',
+      normal: n ? getComputedStyle(n).backgroundColor : '',
+    };
+  });
+  ok('watched list tags are blue', !!tagColors.watched && tagColors.watched !== tagColors.normal, JSON.stringify(tagColors));
+  ok('watched tags persisted', await page.evaluate(() => {
+    const rec = JSON.parse(localStorage.getItem('ehx.watchedTags') || 'null');
+    return !!(rec && Array.isArray(rec.tags) && rec.tags.includes('language:portuguese'));
+  }));
+
   await page.click('.ehx-tab[href="/watched"]');
   await page.waitForFunction(() => location.pathname === '/watched', { timeout: 6000 });
   ok('Watched tab active', await count('.ehx-tab.ehx-active[href="/watched"]') === 1);

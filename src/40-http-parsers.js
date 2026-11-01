@@ -23,7 +23,8 @@
     try {
       const u = new URL(abs);
       if (u.origin !== location.origin) return false;
-      if (/^\/(favorites\.php|watched|home\.php)(\/|$)/.test(u.pathname)) return false;
+      // My Tags carries the account API key; never persist it.
+      if (/^\/(favorites\.php|watched|home\.php|mytags)(\/|$)/.test(u.pathname)) return false;
       return true;
     } catch {
       return false;
@@ -662,6 +663,29 @@
       torrentUrl,
       galleryUrl: tokenM ? absUrl(`/g/${tokenM[1]}/${tokenM[2]}/`, base) : base,
     };
+  }
+
+  // The My Tags page lists the user's tag sets. Each row has a
+  // `#tagwatch_<id>` checkbox; the checked ones are watched tags.
+  function parseWatchedTags(doc) {
+    const out = [];
+    const seen = new Set();
+    for (const box of doc.querySelectorAll('[id^="usertag_"]')) {
+      const id = (box.id || '').replace('usertag_', '');
+      if (!/^\d+$/.test(id)) continue;
+      const watch = box.querySelector(`#tagwatch_${id}`);
+      if (!watch || !(watch.checked || watch.hasAttribute('checked'))) continue;
+      const a = box.querySelector('a[href*="/tag/"]');
+      if (!a) continue;
+      const href = a.getAttribute('href') || '';
+      let full = href.split('/tag/')[1] || '';
+      try { full = decodeURIComponent(full); } catch { /* keep raw */ }
+      full = full.replace(/\+/g, ' ').replace(/\/+$/, '').trim();
+      if (!full || seen.has(full)) continue;
+      seen.add(full);
+      out.push(full);
+    }
+    return out;
   }
 
   function parseComments(doc) {

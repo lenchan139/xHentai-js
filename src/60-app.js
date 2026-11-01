@@ -671,6 +671,8 @@
       .then((yes) => {
         if (!yes) return;
         try { favoritesCache.clear(); } catch { /* noop */ }
+        try { store.del('watchedTags'); } catch { /* noop */ }
+        app.watchedTags = null;
         clearMetadataCaches();
         persistClear();
         openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
@@ -695,9 +697,58 @@
     return LANG_CODES[key] || key.slice(0, 2).toUpperCase();
   }
 
+  // ---------------------------------------------------------------------------
+  // Watched tags
+  // ---------------------------------------------------------------------------
+  // List pages do not mark `.gtw`, so the user's watched tags are fetched once
+  // from /mytags and cached locally; detail pages still use the site's own
+  // `.gtw` marker and fall back to this set.
+  const WATCHED_TAGS_KEY = 'watchedTags';
+  const WATCHED_TAGS_TTL = 12 * 3600 * 1000;
+
+  function watchedTagSet() {
+    if (!app.watchedTags) {
+      const rec = store.get(WATCHED_TAGS_KEY, null);
+      app.watchedTags = new Set(rec && Array.isArray(rec.tags) ? rec.tags : []);
+    }
+    return app.watchedTags;
+  }
+
+  function isWatchedTag(full) {
+    return !!full && watchedTagSet().has(full);
+  }
+
+  function applyWatchedTagClasses() {
+    const set = watchedTagSet();
+    if (!set.size) return;
+    for (const el of document.querySelectorAll('[data-tag]')) {
+      const full = el.getAttribute('data-tag') || '';
+      if (full && set.has(full)) el.classList.add('ehx-tag-watched');
+    }
+  }
+
+  async function refreshWatchedTags() {
+    const cached = store.get(WATCHED_TAGS_KEY, null);
+    if (cached && Date.now() - cached.at < WATCHED_TAGS_TTL) return cached.tags || [];
+    try {
+      const rec = await fetchDoc('/mytags', { ttl: WATCHED_TAGS_TTL });
+      // A logged-out bounce/login page must not be cached as "no watched tags".
+      if (loginPage(rec.doc) || sadPanda(rec.doc)) return cached && Array.isArray(cached.tags) ? cached.tags : [];
+      const tags = parseWatchedTags(rec.doc);
+      store.set(WATCHED_TAGS_KEY, { at: Date.now(), tags });
+      app.watchedTags = new Set(tags);
+      applyWatchedTagClasses();
+      return tags;
+    } catch {
+      return cached && Array.isArray(cached.tags) ? cached.tags : [];
+    }
+  }
+
   function tagPill(t, { nav = true, small = false } = {}) {
-    const attrs = nav ? `data-tag="${esc(t.full || ((t.ns ? t.ns + ':' : '') + t.name))}"` : '';
-    const cls = `ehx-tagpill${t.watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
+    const full = t.full || ((t.ns ? t.ns + ':' : '') + t.name);
+    const attrs = nav ? `data-tag="${esc(full)}"` : '';
+    const watched = t.watched || isWatchedTag(full);
+    const cls = `ehx-tagpill${watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
     return `<${nav ? 'button' : 'span'} class="${cls}" ${attrs}>${esc(t.name || t.full)}</${nav ? 'button' : 'span'}>`;
   }
 
@@ -765,7 +816,11 @@
       ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
-      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag${t.watched ? ' ehx-tag-watched' : ''}">${esc(t.name)}</span>`).join('')}</div>`
+      ? `<div class="ehx-card-tags">${tags.map((t) => {
+        const full = t.full || ((t.ns ? t.ns + ':' : '') + t.name);
+        const watched = t.watched || isWatchedTag(full);
+        return `<span class="ehx-tag${watched ? ' ehx-tag-watched' : ''}" data-tag="${esc(full)}">${esc(t.name)}</span>`;
+      }).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
       <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">

@@ -20,7 +20,7 @@ globalThis.localStorage = {
 globalThis.location = new URL('https://e-hentai.org/');
 globalThis.document = { documentElement: {}, querySelector: () => null };
 
-const factory = new Function(src + '\nreturn { parseList, parseDetail, parseReader, parseToplist, parseComments, loginPage, sadPanda, catFromClass, findNav };');
+const factory = new Function(src + '\nreturn { parseList, parseDetail, parseReader, parseToplist, parseComments, parseWatchedTags, loginPage, sadPanda, catFromClass, findNav };');
 const P = factory();
 
 let pass = 0;
@@ -187,6 +187,17 @@ console.log('\nparseDetail (missing gallery message)');
   const d = P.parseDetail(doc, 'https://e-hentai.org/g/999999999/abcdef1234/');
   ok('no title', !d.title);
   ok('site error message kept', /Gallery not found/.test(d.error), d.error);
+}
+
+console.log('\nparseWatchedTags (My Tags page)');
+{
+  const doc = load('mytags.html');
+  const tags = P.parseWatchedTags(doc);
+  ok('three watched tags', tags.length === 3, tags.join(', '));
+  ok('language tag watched', tags.includes('language:portuguese'), tags.join(', '));
+  ok('artist tag watched', tags.includes('artist:hiyozakura'), tags.join(', '));
+  ok('female tag watched', tags.includes('female:teacher'), tags.join(', '));
+  ok('unwatched tag skipped', !tags.includes('male:monster'), tags.join(', '));
 }
 
 console.log('\nparseDetail (copyright/unavailable page)');

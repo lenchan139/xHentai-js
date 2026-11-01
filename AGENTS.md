@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **96 parser / 98 UI** assertions, both suites must pass
+- Current expectation: **101 parser / 102 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -92,6 +92,8 @@ npm run test:safari:mcp   # Safari MCP stdio harness
 - `detail-ex-small-p1.html` — site page 2 (pages 41–80) of the Small gallery,
   used to test app-side 20-thumb paging.
 - `detail_p1.html` — page 2 of a 1,614-page gallery (thumbnail paging).
+- `mytags.html` — a trimmed My Tags page with `usertag_<id>` rows, watched
+  checkboxes and one unwatched row, used for `parseWatchedTags`.
 - `reader.html`, `toplist.html`, `favorites.html`, `favpopup_loggedin.html`,
   `search.html`, `tag:language:chinese.html`, `popular.html`, `watched.html`.
 
@@ -186,6 +188,9 @@ stale async renders after the user navigates again.
   - Tags are selected from `.gt`, `.gtw` (watched) and `.gtl`; the full tag is
     taken from `toggle_tagmenu(...)` (falling back to the link text) and the
     “ | definition” suffix is stripped. `watched` is true for `.gtw`.
+- `parseWatchedTags(doc)` reads `/mytags` rows: each `usertag_<id>` block with a
+  checked `tagwatch_<id>` contributes the tag from its `/tag/` link. Returns an
+  array of full tag names (`namespace:name`).
 - `parseReader(doc, base)` reads `img#img` (`src`, inline width/height), the
   counter, `load_image()` nav, gallery link, and the `/fullimg/` original URL.
   The served image is E-Hentai's resampled WebP (`xres=800/1280`); the original
@@ -251,6 +256,11 @@ stale async renders after the user navigates again.
   previews in a sheet appear together after that image downloads.
 - The first reader page is warmed in the background with `fetchDoc(firstThumb.href)`
   after the detail page renders.
+- Watched tags: list HTML does not mark `.gtw`, so `refreshWatchedTags()` fetches
+  `/mytags` once per 12 hours, caches the tag names in `ehx.watchedTags`, and
+  `applyWatchedTagClasses()` turns matching `.ehx-tag`/`.ehx-tagpill` elements
+  blue in place. Detail tags still use the site's `.gtw` marker and fall back to
+  the cached set.
 - Covers and sprites are preconnected per origin.
 - Favorites and ratings reuse the site's own popup/API tokens; comments are
   sanitized before rendering.
@@ -313,7 +323,8 @@ preload       1..4
 ```
 
 `localStorage` keys include `ehx.settings`, `ehx.progress`, `ehx.history`,
-`ehx.searches`, `ehx.update` (update check cache/dismissal) and the page cache.
+`ehx.searches`, `ehx.update` (update check cache/dismissal), `ehx.watchedTags`
+(My Tags watched tag names, 12h) and the page cache.
 Favorites/gallery metadata live in IndexedDB `ehx`; legacy `ehx.favorites` is
 migrated there. Cookies stay in the browser's cookie store.
 

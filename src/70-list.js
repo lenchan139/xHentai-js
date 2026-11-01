@@ -77,12 +77,38 @@
       else run();
     }, 1500);
   }
+  let watchedTimer = 0;
+  let watchedSeq = 0;
+
+  function scheduleWatchedTagRefresh() {
+    const cached = store.get(WATCHED_TAGS_KEY, null);
+    if (cached && Date.now() - cached.at < WATCHED_TAGS_TTL) return;
+    const seq = ++watchedSeq;
+    clearTimeout(watchedTimer);
+    watchedTimer = setTimeout(() => {
+      watchedTimer = 0;
+      const run = () => {
+        if (seq !== watchedSeq) return;
+        if (document.visibilityState === 'hidden') return;
+        // Let the eager covers settle before adding another request.
+        if (document.querySelector('.ehx-cover-loading')) {
+          watchedTimer = setTimeout(() => { if (seq === watchedSeq) refreshWatchedTags(); }, 2000);
+          return;
+        }
+        refreshWatchedTags();
+      };
+      if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 3000 });
+      else run();
+    }, 4000);
+  }
+
   function schedulePreload() {
     // Favorites is a 7-10s ExHentai request. Starting it 800ms after launch
     // competed with the first covers and every list navigation. Wait until the
     // user has been idle for a few seconds, and reset on every navigation.
     const seq = ++preloadSeq;
     clearTimeout(preloadTimer);
+    scheduleWatchedTagRefresh();
     preloadTimer = setTimeout(() => {
       preloadTimer = 0;
       const run = () => {

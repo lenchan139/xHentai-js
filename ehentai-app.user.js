@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.3
+// @version      1.2.4
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.3';
+  const VERSION = '1.2.4';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -251,6 +251,8 @@
     htmlCache.clear();
     pageUrlCache.clear();
     try { favoritesCache.clear(); } catch { /* not initialised yet */ }
+    try { store.del('watchedTags'); } catch { /* noop */ }
+    try { app.watchedTags = null; } catch { /* not initialised yet */ }
     clearMetadataCaches();
     persistClear();
   }
@@ -586,9 +588,9 @@
     --shimmer:#e9e1f2;
     --tag-bg:#ece6f3;
     --tag-fg:#4a4354;
-    --tag-watched-bg:#dbeafe;
-    --tag-watched-fg:#1d4ed8;
-    --tag-watched-line:#93c5fd;
+    --tag-watched-bg:#cfe3ff;
+    --tag-watched-fg:#0b47a1;
+    --tag-watched-line:#7db4ff;
     --shadow:0 8px 24px rgba(50,20,90,.12);
   }
   *,*::before,*::after{box-sizing:border-box}
@@ -1181,7 +1183,8 @@
     try {
       const u = new URL(abs);
       if (u.origin !== location.origin) return false;
-      if (/^\/(favorites\.php|watched|home\.php)(\/|$)/.test(u.pathname)) return false;
+      // My Tags carries the account API key; never persist it.
+      if (/^\/(favorites\.php|watched|home\.php|mytags)(\/|$)/.test(u.pathname)) return false;
       return true;
     } catch {
       return false;
@@ -1820,6 +1823,29 @@
       torrentUrl,
       galleryUrl: tokenM ? absUrl(`/g/${tokenM[1]}/${tokenM[2]}/`, base) : base,
     };
+  }
+
+  // The My Tags page lists the user's tag sets. Each row has a
+  // `#tagwatch_<id>` checkbox; the checked ones are watched tags.
+  function parseWatchedTags(doc) {
+    const out = [];
+    const seen = new Set();
+    for (const box of doc.querySelectorAll('[id^="usertag_"]')) {
+      const id = (box.id || '').replace('usertag_', '');
+      if (!/^\d+$/.test(id)) continue;
+      const watch = box.querySelector(`#tagwatch_${id}`);
+      if (!watch || !(watch.checked || watch.hasAttribute('checked'))) continue;
+      const a = box.querySelector('a[href*="/tag/"]');
+      if (!a) continue;
+      const href = a.getAttribute('href') || '';
+      let full = href.split('/tag/')[1] || '';
+      try { full = decodeURIComponent(full); } catch { /* keep raw */ }
+      full = full.replace(/\+/g, ' ').replace(/\/+$/, '').trim();
+      if (!full || seen.has(full)) continue;
+      seen.add(full);
+      out.push(full);
+    }
+    return out;
   }
 
   function parseComments(doc) {
@@ -2630,6 +2656,8 @@
       .then((yes) => {
         if (!yes) return;
         try { favoritesCache.clear(); } catch { /* noop */ }
+        try { store.del('watchedTags'); } catch { /* noop */ }
+        app.watchedTags = null;
         clearMetadataCaches();
         persistClear();
         openExternal('https://forums.e-hentai.org/index.php?act=Login&CODE=03');
@@ -2654,9 +2682,58 @@
     return LANG_CODES[key] || key.slice(0, 2).toUpperCase();
   }
 
+  // ---------------------------------------------------------------------------
+  // Watched tags
+  // ---------------------------------------------------------------------------
+  // List pages do not mark `.gtw`, so the user's watched tags are fetched once
+  // from /mytags and cached locally; detail pages still use the site's own
+  // `.gtw` marker and fall back to this set.
+  const WATCHED_TAGS_KEY = 'watchedTags';
+  const WATCHED_TAGS_TTL = 12 * 3600 * 1000;
+
+  function watchedTagSet() {
+    if (!app.watchedTags) {
+      const rec = store.get(WATCHED_TAGS_KEY, null);
+      app.watchedTags = new Set(rec && Array.isArray(rec.tags) ? rec.tags : []);
+    }
+    return app.watchedTags;
+  }
+
+  function isWatchedTag(full) {
+    return !!full && watchedTagSet().has(full);
+  }
+
+  function applyWatchedTagClasses() {
+    const set = watchedTagSet();
+    if (!set.size) return;
+    for (const el of document.querySelectorAll('[data-tag]')) {
+      const full = el.getAttribute('data-tag') || '';
+      if (full && set.has(full)) el.classList.add('ehx-tag-watched');
+    }
+  }
+
+  async function refreshWatchedTags() {
+    const cached = store.get(WATCHED_TAGS_KEY, null);
+    if (cached && Date.now() - cached.at < WATCHED_TAGS_TTL) return cached.tags || [];
+    try {
+      const rec = await fetchDoc('/mytags', { ttl: WATCHED_TAGS_TTL });
+      // A logged-out bounce/login page must not be cached as "no watched tags".
+      if (loginPage(rec.doc) || sadPanda(rec.doc)) return cached && Array.isArray(cached.tags) ? cached.tags : [];
+      const tags = parseWatchedTags(rec.doc);
+      store.set(WATCHED_TAGS_KEY, { at: Date.now(), tags });
+      app.watchedTags = new Set(tags);
+      applyWatchedTagClasses();
+      return tags;
+    } catch {
+      return cached && Array.isArray(cached.tags) ? cached.tags : [];
+    }
+  }
+
   function tagPill(t, { nav = true, small = false } = {}) {
-    const attrs = nav ? `data-tag="${esc(t.full || ((t.ns ? t.ns + ':' : '') + t.name))}"` : '';
-    const cls = `ehx-tagpill${t.watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
+    const full = t.full || ((t.ns ? t.ns + ':' : '') + t.name);
+    const attrs = nav ? `data-tag="${esc(full)}"` : '';
+    const watched = t.watched || isWatchedTag(full);
+    const cls = `ehx-tagpill${watched ? ' ehx-tag-watched' : ''}${t.hidden ? ' ehx-hiddenop' : ''}`;
     return `<${nav ? 'button' : 'span'} class="${cls}" ${attrs}>${esc(t.name || t.full)}</${nav ? 'button' : 'span'}>`;
   }
 
@@ -2724,7 +2801,11 @@
       ? `<img ${imgAttrs} alt="" class="${blurred ? 'ehx-cover-blur' : ''}">`
       : `<div class="ehx-center" style="height:100%;color:var(--muted2)">${icon('image', 28)}</div>`;
     const tagsHtml = settings.showTags && tags.length
-      ? `<div class="ehx-card-tags">${tags.map((t) => `<span class="ehx-tag${t.watched ? ' ehx-tag-watched' : ''}">${esc(t.name)}</span>`).join('')}</div>`
+      ? `<div class="ehx-card-tags">${tags.map((t) => {
+        const full = t.full || ((t.ns ? t.ns + ':' : '') + t.name);
+        const watched = t.watched || isWatchedTag(full);
+        return `<span class="ehx-tag${watched ? ' ehx-tag-watched' : ''}" data-tag="${esc(full)}">${esc(t.name)}</span>`;
+      }).join('')}</div>`
       : '';
     return `<a class="ehx-card" href="${esc(g.url)}" data-gid="${esc(g.gid)}">
       <div class="ehx-cover${opts.eager ? ' ehx-cover-loading' : ''}">
@@ -3075,12 +3156,38 @@
       else run();
     }, 1500);
   }
+  let watchedTimer = 0;
+  let watchedSeq = 0;
+
+  function scheduleWatchedTagRefresh() {
+    const cached = store.get(WATCHED_TAGS_KEY, null);
+    if (cached && Date.now() - cached.at < WATCHED_TAGS_TTL) return;
+    const seq = ++watchedSeq;
+    clearTimeout(watchedTimer);
+    watchedTimer = setTimeout(() => {
+      watchedTimer = 0;
+      const run = () => {
+        if (seq !== watchedSeq) return;
+        if (document.visibilityState === 'hidden') return;
+        // Let the eager covers settle before adding another request.
+        if (document.querySelector('.ehx-cover-loading')) {
+          watchedTimer = setTimeout(() => { if (seq === watchedSeq) refreshWatchedTags(); }, 2000);
+          return;
+        }
+        refreshWatchedTags();
+      };
+      if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 3000 });
+      else run();
+    }, 4000);
+  }
+
   function schedulePreload() {
     // Favorites is a 7-10s ExHentai request. Starting it 800ms after launch
     // competed with the first covers and every list navigation. Wait until the
     // user has been idle for a few seconds, and reset on every navigation.
     const seq = ++preloadSeq;
     clearTimeout(preloadTimer);
+    scheduleWatchedTagRefresh();
     preloadTimer = setTimeout(() => {
       preloadTimer = 0;
       const run = () => {
@@ -5543,7 +5650,7 @@
 
       // Debug handle (harmless, useful in Safari Web Inspector).
       try {
-        window.__EHENTAI_APP__ = { version: VERSION, settings, app, parser: { parseList, parseDetail, parseReader }, navigate, preloadFavorites, checkForUpdate, clearCaches: clearRuntimeCaches };
+        window.__EHENTAI_APP__ = { version: VERSION, settings, app, parser: { parseList, parseDetail, parseReader, parseWatchedTags }, navigate, preloadFavorites, checkForUpdate, refreshWatchedTags, clearCaches: clearRuntimeCaches };
       } catch { /* noop */ }
     } catch (err) {
       console.error('[EHX boot]', err);
