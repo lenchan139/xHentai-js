@@ -65,8 +65,11 @@
     -webkit-text-size-adjust:100%;text-size-adjust:100%;
     -webkit-tap-highlight-color:transparent;
   }
-  html{scroll-behavior:auto;overflow-x:hidden}
-  body{overflow-x:hidden}
+  /* clip crops sideways without making the element a scroll container.
+     hidden computes overflow-y to auto, which broke position sticky and
+     stopped iOS Safari from collapsing its toolbars on scroll. */
+  html{scroll-behavior:auto;overflow-x:hidden;overflow-x:clip}
+  body{overflow-x:hidden;overflow-x:clip}
   a{color:inherit;text-decoration:none}
   img{max-width:100%}
   button,input,select,textarea{font:inherit;color:inherit}
@@ -75,7 +78,7 @@
   .ehx-i{display:block;flex:0 0 auto}
 
   #${APP_ID}{
-    overflow-x:hidden;
+    overflow-x:hidden;overflow-x:clip;
     min-height:100vh;
     min-height:100dvh;
     display:flex;flex-direction:column;

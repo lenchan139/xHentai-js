@@ -229,6 +229,18 @@ stale async renders after the user navigates again.
   The oldest reliable seek date is **2007-03-21** (it returns the 2007-03-20
   oldest page); earlier values are ignored by the site and are clamped.
 
+### Scroll and iOS toolbars (`src/30-css.js`)
+
+- The app scrolls the document (`window.scrollY`); the top bar is
+  `position: sticky`.
+- `html`, `body` and `#ehx-app` use `overflow-x: clip` (with an `overflow-x:
+  hidden` fallback). `overflow-x: hidden` computes `overflow-y` to `auto`, which
+  turns the element into a scroll container: the sticky top bar stops sticking
+  and iOS Safari keeps its address/toolbars expanded instead of collapsing on
+  scroll.
+- The reader is a fixed full-screen overlay with its own scroller, so iOS does
+  not collapse its toolbars while reading; list/detail pages do.
+
 ### Scroll-to-top FAB (`src/60-app.js`)
 
 - `#ehx-fab` is fixed above the dock; visible after 480px of scroll.

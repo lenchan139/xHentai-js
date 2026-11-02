@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.5/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.5%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.5/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.6%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -72,15 +72,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.2.5 (cache-free):**
+**Direct install snapshot — v1.2.6 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.5/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.2.5](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.5/ehentai-app.user.js)
+- [Install v1.2.6](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -98,7 +98,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.2.5 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.5/ehentai-app.user.js)
+3. Open the [v1.2.6 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -109,7 +109,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.2.5 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.5/ehentai-app.user.js)
+   On My iPhone), then save the [v1.2.6 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -340,6 +340,13 @@ site. Favorites and ratings are the two account actions implemented in-app.
 - The site's favorites popup needs a valid session. Log in. The app handles both
   the radio-button popup (folders 0–9 plus Remove from Favorites) and the older
   select layout; it only opens the original popup if that HTML cannot be read.
+
+**Safari’s address bar does not hide while scrolling**
+- Fixed in 1.2.6 for list and gallery pages: horizontal clipping now uses
+  `overflow-x: clip`, so the page is the real scroll container and Safari can
+  collapse its toolbars (this also keeps the top bar sticky). The reader is a
+  fixed full-screen overlay with its own scroll area, so Safari keeps its bars
+  there.
 
 **Infinite scroll stops**
 - The site did not provide a Next link for that page (common on Popular or when not
