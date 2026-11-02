@@ -357,6 +357,8 @@
   .ehx-action:active .ehx-abox{transform:scale(.94);background:var(--card2)}
   .ehx-action.ehx-primary .ehx-abox{background:var(--accent);color:var(--accent-ink);border-color:transparent;box-shadow:0 6px 18px rgba(103,80,164,.3)}
   .ehx-action.ehx-primary{color:var(--accent)}
+  .ehx-action.ehx-saved .ehx-abox{background:var(--tag-watched-bg);color:var(--tag-watched-fg);border-color:var(--tag-watched-line)}
+  .ehx-action.ehx-saved{color:var(--tag-watched-fg)}
   .ehx-action[disabled]{opacity:.4;pointer-events:none}
 
   .ehx-section{padding:8px calc(14px + var(--sar)) 4px calc(14px + var(--sal))}

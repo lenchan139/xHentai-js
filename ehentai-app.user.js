@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.4
+// @version      1.2.5
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.4';
+  const VERSION = '1.2.5';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -894,6 +894,8 @@
   .ehx-action:active .ehx-abox{transform:scale(.94);background:var(--card2)}
   .ehx-action.ehx-primary .ehx-abox{background:var(--accent);color:var(--accent-ink);border-color:transparent;box-shadow:0 6px 18px rgba(103,80,164,.3)}
   .ehx-action.ehx-primary{color:var(--accent)}
+  .ehx-action.ehx-saved .ehx-abox{background:var(--tag-watched-bg);color:var(--tag-watched-fg);border-color:var(--tag-watched-line)}
+  .ehx-action.ehx-saved{color:var(--tag-watched-fg)}
   .ehx-action[disabled]{opacity:.4;pointer-events:none}
 
   .ehx-section{padding:8px calc(14px + var(--sar)) 4px calc(14px + var(--sal))}
@@ -1661,7 +1663,9 @@
     const ratingCount = num(text(doc.querySelector('#rating_count')));
 
     const favText = text(doc.querySelector('#favoritelink'));
-    const favorited = /remove/i.test(favText);
+    // ExHentai now shows the folder name ("Favorites 3") when favorited and
+    // "Add to Favorites" otherwise; older markup used "Remove from Favorites".
+    const favorited = !!favText && !/add to favorites/i.test(favText);
     const favCount = num(text(doc.querySelector('#favcount')));
 
     const tags = [];
@@ -3556,7 +3560,7 @@
       <button class="ehx-action ehx-primary" data-act="read" ${data.thumbs.length ? '' : 'disabled'}>
         <span class="ehx-abox">${icon('book', 22)}</span><span>${esc(readLabel)}</span>
       </button>
-      <button class="ehx-action" data-act="fav">
+      <button class="ehx-action${data.isFavorited ? ' ehx-saved' : ''}" data-act="fav">
         <span class="ehx-abox">${icon('heart', 21)}</span><span>${data.isFavorited ? 'Saved' : 'Favorite'}</span>
       </button>
       <button class="ehx-action" data-act="rate">
@@ -3993,39 +3997,69 @@
       try { rec = await fetchDoc(urlPopup, { force: true }); } catch (e) { openExternal(urlPopup); return; }
       if (loginPage(rec.doc)) { openLoginSheet(); return; }
       const forms = $$('form', rec.doc);
-      const form = forms.find((f) => f.querySelector('select[name="favcat"]')) || forms.find((f) => /fav/i.test(f.getAttribute('action') || ''));
+      // The popup used a <select> historically and now uses radio buttons
+      // (`favcat`, with `favdel` for removal), so accept either shape.
+      const form = forms.find((f) => f.querySelector('[name="favcat"]'))
+        || forms.find((f) => f.id === 'galpop' || /fav/i.test(f.getAttribute('action') || ''));
       if (!form) { openExternal(urlPopup); return; }
+
+      const radioLabel = (r) => {
+        const id = r.id || '';
+        if (id) {
+          const lab = form.querySelector(`label[for="${id}"]`);
+          if (lab) return text(lab);
+        }
+        const wrap = r.closest('label');
+        if (wrap) return text(wrap);
+        const row = r.parentElement && r.parentElement.parentElement;
+        const rowText = text(row);
+        if (rowText && rowText.length <= 40) return rowText;
+        const v = r.getAttribute('value') || '';
+        return v === 'favdel' ? 'Remove from Favorites' : `Favorites ${v}`;
+      };
+
       const select = form.querySelector('select[name="favcat"]');
+      const radios = $$('input[type="radio"][name="favcat"]', form);
+      const options = select
+        ? $$('option', select).map((o) => ({ value: o.getAttribute('value') || '', label: text(o), selected: o.hasAttribute('selected') }))
+        : radios.map((r) => ({ value: r.getAttribute('value') || '', label: radioLabel(r), selected: r.checked }));
       const noteEl = form.querySelector('[name="favnote"]');
-      const options = select ? $$('option', select).map((o) => ({ value: o.getAttribute('value') || '', label: text(o), selected: o.hasAttribute('selected') })) : [];
-      const current = (options.find((o) => o.selected) || options[0] || {}).value || '0';
+      const isRemoveValue = (v) => v === 'favdel' || v === '-1';
+      const current = (options.find((o) => o.selected) || options.find((o) => !isRemoveValue(o.value)) || options[0] || {}).value || '0';
       const s = openSheet({
-        title: 'Favorite gallery',
+        title: data.isFavorited ? 'Update favorite' : 'Favorite gallery',
         body: `
           <div class="ehx-field"><label class="ehx-label">Folder</label>
             <select class="ehx-input" id="ehx-favcat">${options.map((o) => `<option value="${esc(o.value)}" ${o.value === current ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>
           </div>
           <div class="ehx-field"><label class="ehx-label">Note (optional)</label><textarea class="ehx-input" id="ehx-favnote" maxlength="200">${esc(noteEl ? noteEl.value : '')}</textarea></div>
-          ${data.isFavorited ? '<p style="font-size:11.5px;color:var(--muted2);margin:0">This gallery is already in your favorites. Applying changes will move it.</p>' : ''}`,
+          ${data.isFavorited ? '<p style="font-size:11.5px;color:var(--muted2);margin:0">This gallery is already in your favorites. Pick another folder to move it, or Remove from Favorites.</p>' : ''}`,
         footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="save">Save</button>`,
       });
       s.sheet.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-x]');
         if (!b) return;
         if (b.dataset.x === 'cancel') { s.close(); return; }
+        const cat = $('#ehx-favcat', s.sheet).value;
+        const removed = isRemoveValue(cat);
         const fd = formDataFrom(form);
-        fd.set('favcat', $('#ehx-favcat', s.sheet).value);
+        fd.set('favcat', cat);
         fd.set('favnote', $('#ehx-favnote', s.sheet).value);
         const action = form.getAttribute('action') || '';
         const absAction = action ? absUrl(action, rec.url) : urlPopup;
         try {
           const res = await postForm(absAction, fd, { priority: true });
           if (loginPage(res.doc)) { openLoginSheet(); return; }
-          data.isFavorited = true;
+          data.isFavorited = !removed;
           try { favoritesCache.clear(); } catch { /* noop */ }
+          const favBtn = document.querySelector('.ehx-action[data-act="fav"]');
+          if (favBtn) {
+            favBtn.classList.toggle('ehx-saved', !removed);
+            const label = favBtn.querySelector('span:last-child');
+            if (label) label.textContent = removed ? 'Favorite' : 'Saved';
+          }
           s.close();
-          toast('Favorites updated');
-          app.refresh();
+          toast(removed ? 'Removed from favorites' : 'Favorites updated');
         } catch (err) {
           toast('Could not update favorites');
         }

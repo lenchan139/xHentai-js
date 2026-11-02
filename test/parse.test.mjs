@@ -189,6 +189,21 @@ console.log('\nparseDetail (missing gallery message)');
   ok('site error message kept', /Gallery not found/.test(d.error), d.error);
 }
 
+console.log('\nparseDetail (favorite state)');
+{
+  const make = (label) => parseHTML(`<html><body>
+    <div id="gn">Test gallery</div>
+    <div id="gdf"><a id="favoritelink" href="#">${label}</a></div>
+    <div id="gdd"><table><tr><td class="gdt1">Length:</td><td class="gdt2">10 pages</td></tr></table></div>
+  </body></html>`).document;
+  const notFav = P.parseDetail(make('Add to Favorites'), 'https://exhentai.org/g/1/abcdef/');
+  ok('add-to-favorites is not favorited', notFav.isFavorited === false);
+  const fav = P.parseDetail(make('Favorites 3'), 'https://exhentai.org/g/1/abcdef/');
+  ok('folder label means favorited', fav.isFavorited === true);
+  const legacy = P.parseDetail(make('Remove from Favorites'), 'https://exhentai.org/g/1/abcdef/');
+  ok('legacy remove label means favorited', legacy.isFavorited === true);
+}
+
 console.log('\nparseWatchedTags (My Tags page)');
 {
   const doc = load('mytags.html');

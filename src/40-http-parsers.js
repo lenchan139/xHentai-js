@@ -501,7 +501,9 @@
     const ratingCount = num(text(doc.querySelector('#rating_count')));
 
     const favText = text(doc.querySelector('#favoritelink'));
-    const favorited = /remove/i.test(favText);
+    // ExHentai now shows the folder name ("Favorites 3") when favorited and
+    // "Add to Favorites" otherwise; older markup used "Remove from Favorites".
+    const favorited = !!favText && !/add to favorites/i.test(favText);
     const favCount = num(text(doc.querySelector('#favcount')));
 
     const tags = [];

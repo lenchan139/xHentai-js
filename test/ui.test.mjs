@@ -82,6 +82,12 @@ const server = http.createServer(async (req, res) => {
       res.end(html);
       return;
     }
+    if (req.method === 'GET' && u.pathname === '/gallerypopups.php' && ['4299226', '1922802'].includes(u.searchParams.get('gid'))) {
+      const html = await fsp.readFile(path.join(raw, 'favpopup_radio.html'), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(html);
+      return;
+    }
     if (u.pathname === '/mytags') {
       let html = await fsp.readFile(path.join(raw, 'mytags.html'), 'utf8');
       html = html.replace(/https?:\/\/(www\.)?(e-hentai|exhentai)\.org/g, BASE);
@@ -503,6 +509,26 @@ try {
   ok('favorite POST includes note', /name="favnote"\r\n\r\ntest note/.test((posted && posted.body) || ''), JSON.stringify(posted));
   ok('favorite POST preserves server token', /name="csrf"\r\n\r\ntest-token/.test((posted && posted.body) || ''), JSON.stringify(posted));
   ok('favorite sheet closed after save', await count('.ehx-sheet.ehx-open') === 0);
+
+  console.log('\nFavorites form (radio popup, in-app)');
+  await page.goto(BASE + '/g/1922802/711f9187e5/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-act="fav"]', { timeout: 10000 });
+  ok('favorited gallery shows Saved', (await txt('[data-act="fav"]')) === 'Saved', await txt('[data-act="fav"]'));
+  ok('favorited action is highlighted', await page.$eval('[data-act="fav"]', (el) => el.classList.contains('ehx-saved')));
+  await page.evaluate(() => document.querySelector('[data-act="fav"]').click());
+  await page.waitForSelector('#ehx-favcat', { timeout: 8000 });
+  const favOptions = await page.$$eval('#ehx-favcat option', (els) => els.map((o) => ({ value: o.value, label: o.textContent.trim() })));
+  ok('radio popup opens the in-app sheet', favOptions.length === 11, JSON.stringify(favOptions));
+  ok('remove option is offered', favOptions.some((o) => o.value === 'favdel' && /remove/i.test(o.label)), JSON.stringify(favOptions));
+  ok('already-favorited sheet says update', (await txt('.ehx-sheet-title')).includes('Update favorite'), await txt('.ehx-sheet-title'));
+  await page.select('#ehx-favcat', 'favdel');
+  await page.evaluate(() => document.querySelector('[data-x="save"]').click());
+  await new Promise((r) => setTimeout(r, 700));
+  const favPosted = await page.evaluate(() => fetch('/__lastpost').then((r) => r.json()));
+  ok('remove POST sends favdel', /name="favcat"\r\n\r\nfavdel/.test((favPosted && favPosted.body) || ''), JSON.stringify(favPosted));
+  ok('favorite action resets after removing', (await txt('[data-act="fav"]')) === 'Favorite', await txt('[data-act="fav"]'));
+  ok('saved highlight clears after removing', !(await page.$eval('[data-act="fav"]', (el) => el.classList.contains('ehx-saved'))));
+  ok('radio favorite sheet closed', await count('.ehx-sheet.ehx-open') === 0);
 
   console.log('\nFavorites warm cache');
   await page.evaluate(() => window.__EHENTAI_APP__.clearCaches());
