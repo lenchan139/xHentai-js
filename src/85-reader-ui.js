@@ -117,11 +117,14 @@
       }
       if (r.swiped) { r.swiped = false; return; }
 
+      // In vertical mode, pages are reached by scrolling; tapping the edges
+      // should only toggle the chrome, not jump to another page.
       const x = e.clientX / Math.max(1, window.innerWidth);
-      if (settings.tapZones && x < 0.3) {
+      const zoned = settings.tapZones && r.mode !== 'vertical';
+      if (zoned && x < 0.3) {
         if (r.index > 1) setReaderIndex(r, r.index - 1);
         else flashHint(r, 'First page');
-      } else if (settings.tapZones && x > 0.7) {
+      } else if (zoned && x > 0.7) {
         if (r.index < (r.total || 1)) setReaderIndex(r, r.index + 1);
         else flashHint(r, 'Last page');
       } else {

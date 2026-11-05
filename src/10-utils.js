@@ -2,7 +2,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.6';
+  const VERSION = '1.2.7';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -201,8 +201,12 @@
     list() { return store.get(this.key, []); },
     touch(entry) {
       if (!entry || !entry.gid) return;
-      const list = this.list().filter((x) => String(x.gid) !== String(entry.gid));
-      list.unshift(Object.assign({}, entry, { updated: Date.now() }));
+      const all = this.list();
+      const prev = all.find((x) => String(x.gid) === String(entry.gid)) || {};
+      const list = all.filter((x) => String(x.gid) !== String(entry.gid));
+      // Keep page position / pageUrl learned from the reader when the detail
+      // page only knows the title and cover.
+      list.unshift(Object.assign({}, prev, entry, { updated: Date.now() }));
       store.set(this.key, list.slice(0, 120));
     },
     remove(gid) { store.set(this.key, this.list().filter((x) => String(x.gid) !== String(gid))); },

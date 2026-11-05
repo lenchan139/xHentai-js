@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.6%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.7%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -38,10 +38,13 @@ plain JavaScript running in your own browser.
   Comments/Share, info grid, grouped tags, page-preview grid with jump-to-page.
   The cover and title appear immediately when you tap a card, even if the site is
   slow to send the rest.
-- **Favorite sheet** — Favorite opens an in-app dialog: pick a folder (0–9), add
-  an optional note, or choose **Remove from Favorites**. Existing favorites show
-  **Saved** with a blue highlight, and the sheet opens as **Update favorite**
-  instead of redirecting to the site's popup page.
+- **Favorite sheet** — Favorite opens an in-app dialog immediately (even while
+  the site's popup is still loading): pick a folder (0–9), add an optional note,
+  or choose **Remove from Favorites**. Existing favorites show **Saved** with a
+  blue highlight, and the sheet opens as **Update favorite**. If the popup cannot
+  be read, the dialog still saves with the default folders instead of redirecting.
+- **History** — opening a gallery adds it to History; reading merges your page
+  position into the same entry.
 - **Reader** — vertical continuous or paged horizontal, width/contain fit,
   1–4 pages of preload, tap zones, auto-hiding chrome, range slider, jump-to-page,
   retry, original page, and a **Resampled / Original** image-resolution switch.
@@ -54,7 +57,7 @@ plain JavaScript running in your own browser.
   minimum is the oldest usable date, **2007-03-21**.
 - **Scroll-to-top button** — a floating button after you scroll; left by default,
   switchable to right or off in Settings.
-- **Library** — local reading history, resume positions, clear history/progress/
+- **Library** — local history of opened galleries, resume positions, clear history/progress/
   cache.
 - **Login** — password or cookie login. Favorites and ratings work in-app; other
   account actions open the original site.
@@ -72,15 +75,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.2.6 (cache-free):**
+**Direct install snapshot — v1.2.7 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.2.6](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
+- [Install v1.2.7](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -98,7 +101,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.2.6 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
+3. Open the [v1.2.7 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -109,7 +112,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.2.6 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.6/ehentai-app.user.js)
+   On My iPhone), then save the [v1.2.7 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -198,9 +201,10 @@ the cookie method is the reliable one.
 
 ### Reader gestures
 
-- Tap the **center** to show/hide the chrome.
-- Tap the **left/right third** to go to the previous/next page.
-- Vertical mode: scroll continuously. Paged mode: swipe horizontally; pages snap.
+- Tap anywhere to show/hide the chrome in vertical mode.
+- Paged mode: tap the **left/right third** to go to the previous/next page, or
+  swipe horizontally; pages snap.
+- Vertical mode: scroll continuously; tapping the edges does **not** jump pages.
 - Use the range slider or the counter pill for fast navigation.
 - Menu: reading mode, image fit, image resolution, jump, reload, open image,
   gallery, original page, share.

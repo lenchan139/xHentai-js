@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.6
+// @version      1.2.7
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.6';
+  const VERSION = '1.2.7';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -235,8 +235,12 @@
     list() { return store.get(this.key, []); },
     touch(entry) {
       if (!entry || !entry.gid) return;
-      const list = this.list().filter((x) => String(x.gid) !== String(entry.gid));
-      list.unshift(Object.assign({}, entry, { updated: Date.now() }));
+      const all = this.list();
+      const prev = all.find((x) => String(x.gid) === String(entry.gid)) || {};
+      const list = all.filter((x) => String(x.gid) !== String(entry.gid));
+      // Keep page position / pageUrl learned from the reader when the detail
+      // page only knows the title and cover.
+      list.unshift(Object.assign({}, prev, entry, { updated: Date.now() }));
       store.set(this.key, list.slice(0, 120));
     },
     remove(gid) { store.set(this.key, this.list().filter((x) => String(x.gid) !== String(gid))); },
@@ -3704,6 +3708,18 @@
       });
       document.title = (opts.gallery.title || 'Gallery') + ' · ' + SITE_NAME;
       app.main.innerHTML = detailPreviewHtml(opts.gallery);
+      // Record the opened gallery immediately, even if the full page is slow
+      // or fails; the reader later merges its page position into this entry.
+      historyStore.touch({
+        gid,
+        token,
+        title: opts.gallery.title || '',
+        cover: opts.gallery.cover || '',
+        pages: opts.gallery.pages || 0,
+        category: opts.gallery.category || '',
+        language: opts.gallery.language || '',
+        galleryUrl,
+      });
       // The reader can start from the route's gid/token even before the
       // gallery HTML is parsed.
       onAction('read', async () => {
@@ -3758,6 +3774,16 @@
 
     if (typeof data.apiuid === 'number' && data.apiuid > 0) { app.loggedIn = true; renderDrawer(); }
 
+    historyStore.touch({
+      gid: data.gid || gid,
+      token: data.token || token,
+      title: data.title,
+      cover: data.cover || '',
+      pages: data.pages || 0,
+      category: data.category || '',
+      language: data.language || '',
+      galleryUrl: data.galleryUrl || galleryUrl,
+    });
     cacheGalleryMetadata([data]);
     const cover = data.cover || '';
     if (cover) { try { preconnectOrigin(new URL(cover).origin); } catch { /* noop */ } }
@@ -3996,60 +4022,105 @@
     onAction('fav', async () => {
       if (app.loggedIn === false) { openLoginSheet(); return; }
       const urlPopup = absUrl(`/gallerypopups.php?gid=${gid}&t=${token}&act=addfav`);
-      let rec;
-      try { rec = await fetchDoc(urlPopup, { force: true }); } catch (e) { openExternal(urlPopup); return; }
-      if (loginPage(rec.doc)) { openLoginSheet(); return; }
-      const forms = $$('form', rec.doc);
-      // The popup used a <select> historically and now uses radio buttons
-      // (`favcat`, with `favdel` for removal), so accept either shape.
-      const form = forms.find((f) => f.querySelector('[name="favcat"]'))
-        || forms.find((f) => f.id === 'galpop' || /fav/i.test(f.getAttribute('action') || ''));
-      if (!form) { openExternal(urlPopup); return; }
-
-      const radioLabel = (r) => {
-        const id = r.id || '';
-        if (id) {
-          const lab = form.querySelector(`label[for="${id}"]`);
-          if (lab) return text(lab);
-        }
-        const wrap = r.closest('label');
-        if (wrap) return text(wrap);
-        const row = r.parentElement && r.parentElement.parentElement;
-        const rowText = text(row);
-        if (rowText && rowText.length <= 40) return rowText;
-        const v = r.getAttribute('value') || '';
-        return v === 'favdel' ? 'Remove from Favorites' : `Favorites ${v}`;
-      };
-
-      const select = form.querySelector('select[name="favcat"]');
-      const radios = $$('input[type="radio"][name="favcat"]', form);
-      const options = select
-        ? $$('option', select).map((o) => ({ value: o.getAttribute('value') || '', label: text(o), selected: o.hasAttribute('selected') }))
-        : radios.map((r) => ({ value: r.getAttribute('value') || '', label: radioLabel(r), selected: r.checked }));
-      const noteEl = form.querySelector('[name="favnote"]');
       const isRemoveValue = (v) => v === 'favdel' || v === '-1';
-      const current = (options.find((o) => o.selected) || options.find((o) => !isRemoveValue(o.value)) || options[0] || {}).value || '0';
+
+      // Open the sheet immediately with the standard 0-9 folders. The popup
+      // only refines the default folder and note; it must never redirect the
+      // user to the original page (new galleries can be slow or use a layout
+      // the parser has not seen yet).
+      const defaultOptions = () => {
+        const out = Array.from({ length: 10 }, (_, i) => ({ value: String(i), label: `Favorites ${i}`, selected: i === 0 }));
+        if (data.isFavorited) out.push({ value: 'favdel', label: 'Remove from Favorites', selected: false });
+        return out;
+      };
+      const optionHtml = (options, current) => options
+        .map((o) => `<option value="${esc(o.value)}" ${o.value === current ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+
       const s = openSheet({
         title: data.isFavorited ? 'Update favorite' : 'Favorite gallery',
         body: `
           <div class="ehx-field"><label class="ehx-label">Folder</label>
-            <select class="ehx-input" id="ehx-favcat">${options.map((o) => `<option value="${esc(o.value)}" ${o.value === current ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>
+            <select class="ehx-input" id="ehx-favcat">${optionHtml(defaultOptions(), '0')}</select>
           </div>
-          <div class="ehx-field"><label class="ehx-label">Note (optional)</label><textarea class="ehx-input" id="ehx-favnote" maxlength="200">${esc(noteEl ? noteEl.value : '')}</textarea></div>
-          ${data.isFavorited ? '<p style="font-size:11.5px;color:var(--muted2);margin:0">This gallery is already in your favorites. Pick another folder to move it, or Remove from Favorites.</p>' : ''}`,
+          <div class="ehx-field"><label class="ehx-label">Note (optional)</label><textarea class="ehx-input" id="ehx-favnote" maxlength="200"></textarea></div>
+          ${data.isFavorited ? '<p style="font-size:11.5px;color:var(--muted2);margin:0">This gallery is already in your favorites. Pick another folder to move it, or Remove from Favorites.</p>' : ''}
+          <p id="ehx-fav-status" style="font-size:11px;color:var(--muted2);margin:8px 0 0">Loading your folders…</p>`,
         footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="save">Save</button>`,
       });
+
+      const selectEl = $('#ehx-favcat', s.sheet);
+      const noteField = $('#ehx-favnote', s.sheet);
+      const statusEl = $('#ehx-fav-status', s.sheet);
+      let form = null;
+      let rec = null;
+      let touched = false;
+      selectEl.addEventListener('change', () => { touched = true; });
+
+      fetchDoc(urlPopup, { force: true })
+        .then((r) => {
+          if (!s.sheet.isConnected) return;
+          rec = r;
+          if (loginPage(r.doc)) { s.close(); openLoginSheet(); return; }
+          const forms = $$('form', r.doc);
+          const found = forms.find((f) => f.querySelector('[name="favcat"]'))
+            || forms.find((f) => f.id === 'galpop' || /fav/i.test(f.getAttribute('action') || ''));
+          if (!found) { if (statusEl) statusEl.textContent = 'Using default folders.'; return; }
+          form = found;
+          if (statusEl) statusEl.textContent = '';
+          if (touched) return;
+
+          const sel = found.querySelector('select[name="favcat"]');
+          const radios = $$('input[type="radio"][name="favcat"]', found);
+          const options = sel
+            ? $$('option', sel).map((o) => ({ value: o.getAttribute('value') || '', label: text(o), selected: o.hasAttribute('selected') }))
+            : radios.map((radio) => {
+              const id = radio.id || '';
+              let label = '';
+              if (id) {
+                const lab = found.querySelector(`label[for="${id}"]`);
+                if (lab) label = text(lab);
+              }
+              if (!label) {
+                const wrap = radio.closest('label');
+                if (wrap) label = text(wrap);
+              }
+              if (!label) {
+                const row = radio.parentElement && radio.parentElement.parentElement;
+                const rowText = text(row);
+                if (rowText && rowText.length <= 40) label = rowText;
+              }
+              if (!label) {
+                const v = radio.getAttribute('value') || '';
+                label = v === 'favdel' ? 'Remove from Favorites' : `Favorites ${v}`;
+              }
+              return { value: radio.getAttribute('value') || '', label, selected: radio.checked };
+            });
+          if (!options.length) return;
+          const current = (options.find((o) => o.selected) || options.find((o) => !isRemoveValue(o.value)) || options[0]).value || '0';
+          selectEl.innerHTML = optionHtml(options, current);
+          const note = found.querySelector('[name="favnote"]');
+          if (note && !noteField.value) noteField.value = note.value;
+        })
+        .catch(() => { if (statusEl) statusEl.textContent = 'Using default folders.'; });
+
       s.sheet.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-x]');
         if (!b) return;
         if (b.dataset.x === 'cancel') { s.close(); return; }
-        const cat = $('#ehx-favcat', s.sheet).value;
+        const cat = selectEl.value;
         const removed = isRemoveValue(cat);
-        const fd = formDataFrom(form);
+        let fd;
+        if (form) {
+          fd = formDataFrom(form);
+        } else {
+          fd = new FormData();
+          fd.set('update', '1');
+          fd.set('apply', removed ? 'Apply Changes' : 'Add to Favorites');
+        }
         fd.set('favcat', cat);
-        fd.set('favnote', $('#ehx-favnote', s.sheet).value);
-        const action = form.getAttribute('action') || '';
-        const absAction = action ? absUrl(action, rec.url) : urlPopup;
+        fd.set('favnote', noteField.value);
+        const action = form ? (form.getAttribute('action') || '') : '';
+        const absAction = action ? absUrl(action, (rec && rec.url) || urlPopup) : urlPopup;
         try {
           const res = await postForm(absAction, fd, { priority: true });
           if (loginPage(res.doc)) { openLoginSheet(); return; }
@@ -4946,11 +5017,14 @@
       }
       if (r.swiped) { r.swiped = false; return; }
 
+      // In vertical mode, pages are reached by scrolling; tapping the edges
+      // should only toggle the chrome, not jump to another page.
       const x = e.clientX / Math.max(1, window.innerWidth);
-      if (settings.tapZones && x < 0.3) {
+      const zoned = settings.tapZones && r.mode !== 'vertical';
+      if (zoned && x < 0.3) {
         if (r.index > 1) setReaderIndex(r, r.index - 1);
         else flashHint(r, 'First page');
-      } else if (settings.tapZones && x > 0.7) {
+      } else if (zoned && x > 0.7) {
         if (r.index < (r.total || 1)) setReaderIndex(r, r.index + 1);
         else flashHint(r, 'Last page');
       } else {
@@ -5510,7 +5584,7 @@
 
     const entries = historyStore.list();
     if (!entries.length) {
-      app.main.innerHTML = emptyState('No reading history', 'Galleries you open in the reader will show up here, with your page position.', `<a class="ehx-btn" href="/">Browse galleries</a>`, 'history');
+      app.main.innerHTML = emptyState('No history yet', 'Galleries you open will show up here, with your page position once you start reading.', `<a class="ehx-btn" href="/">Browse galleries</a>`, 'history');
       return;
     }
 

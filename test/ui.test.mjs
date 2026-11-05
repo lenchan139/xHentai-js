@@ -82,6 +82,11 @@ const server = http.createServer(async (req, res) => {
       res.end(html);
       return;
     }
+    if (req.method === 'GET' && u.pathname === '/gallerypopups.php' && u.searchParams.get('gid') === '9990001') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('<html><body><div class="d"><p>Favorite popup unavailable.</p></div></body></html>');
+      return;
+    }
     if (req.method === 'GET' && u.pathname === '/gallerypopups.php' && ['4299226', '1922802'].includes(u.searchParams.get('gid'))) {
       const html = await fsp.readFile(path.join(raw, 'favpopup_radio.html'), 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -307,6 +312,11 @@ try {
   ok('preview offers Read immediately', await count('.ehx-actions [data-act="read"]') === 1);
   await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
   ok('detail hero title', (await txt('.ehx-dtitle')).includes('ADE'), await txt('.ehx-dtitle'));
+  ok('opening a gallery records history', await page.evaluate(() => {
+    const gid = (location.pathname.match(/\/g\/(\d+)/) || [])[1];
+    const list = JSON.parse(localStorage.getItem('ehx.history') || '[]');
+    return !!gid && list.some((h) => String(h.gid) === gid);
+  }));
   ok('18 thumbnails', await count('.ehx-thumb') === 18, String(await count('.ehx-thumb')));
   await page.waitForFunction(() => {
     const cells = Array.from(document.querySelectorAll('[data-sprite]'));
@@ -335,6 +345,11 @@ try {
   ok('reader count 1 / 18', (await txt('.ehx-rcount')) === '1 / 18', await txt('.ehx-rcount'));
   ok('18 page slots', await count('.ehx-rpage') === 18, String(await count('.ehx-rpage')));
   ok('reader url is /s/', (await page.evaluate(() => location.pathname)).startsWith('/s/'));
+  ok('reader starts in vertical mode', await page.$eval('.ehx-reader', (el) => el.classList.contains('ehx-vertical')));
+  const readerVp = page.viewport();
+  await page.mouse.click(Math.round(readerVp.width * 0.9), Math.round(readerVp.height * 0.5));
+  await new Promise((r) => setTimeout(r, 500));
+  ok('vertical tap zones do not change pages', (await txt('.ehx-rcount')) === '1 / 18', await txt('.ehx-rcount'));
 
   await page.evaluate(() => document.querySelector('.ehx-rchrome').classList.remove('ehx-hidden'));
   await page.click('[data-r="next"]');
@@ -452,11 +467,15 @@ try {
   await page.waitForSelector('.ehx-card', { timeout: 6000 });
   await new Promise((r) => setTimeout(r, 500));
   ok('history has an entry', await count('.ehx-card') >= 1, String(await count('.ehx-card')));
-  ok('history card shows progress', (await txt('.ehx-card .ehx-badge.ehx-resume')).startsWith('P'));
+  ok('history card shows progress', await count('.ehx-card .ehx-resume') >= 1, String(await count('.ehx-card .ehx-resume')));
 
   console.log('\nPaged reader from history');
   step('click history card');
-  await page.evaluate(() => { const el = document.querySelector('.ehx-card'); if (el) el.click(); });
+  await page.evaluate(() => {
+    const cards = Array.from(document.querySelectorAll('.ehx-card'));
+    const card = cards.find((a) => /\/s\//.test(a.getAttribute('href') || '')) || cards[0];
+    if (card) card.click();
+  });
   await page.waitForSelector('.ehx-reader.ehx-paged', { timeout: 10000 });
   await page.waitForSelector('.ehx-reader .ehx-rpage img', { timeout: 10000 });
   ok('paged reader active', await count('.ehx-reader.ehx-paged') === 1);
@@ -498,6 +517,10 @@ try {
   await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
   await page.click('[data-act="fav"]');
   await page.waitForSelector('.ehx-sheet', { timeout: 8000 });
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#ehx-fav-status');
+    return el && el.textContent === '';
+  }, { timeout: 6000 });
   await new Promise((r) => setTimeout(r, 420));
   ok('favorite folder form opened', await count('#ehx-favcat') === 1);
   await page.select('#ehx-favcat', '1');
@@ -517,6 +540,7 @@ try {
   ok('favorited action is highlighted', await page.$eval('[data-act="fav"]', (el) => el.classList.contains('ehx-saved')));
   await page.evaluate(() => document.querySelector('[data-act="fav"]').click());
   await page.waitForSelector('#ehx-favcat', { timeout: 8000 });
+  await page.waitForFunction(() => document.querySelectorAll('#ehx-favcat option').length === 11, { timeout: 6000 });
   const favOptions = await page.$$eval('#ehx-favcat option', (els) => els.map((o) => ({ value: o.value, label: o.textContent.trim() })));
   ok('radio popup opens the in-app sheet', favOptions.length === 11, JSON.stringify(favOptions));
   ok('remove option is offered', favOptions.some((o) => o.value === 'favdel' && /remove/i.test(o.label)), JSON.stringify(favOptions));
@@ -529,6 +553,25 @@ try {
   ok('favorite action resets after removing', (await txt('[data-act="fav"]')) === 'Favorite', await txt('[data-act="fav"]'));
   ok('saved highlight clears after removing', !(await page.$eval('[data-act="fav"]', (el) => el.classList.contains('ehx-saved'))));
   ok('radio favorite sheet closed', await count('.ehx-sheet.ehx-open') === 0);
+
+  console.log('\nFavorites form (popup unavailable, defaults)');
+  await page.goto(BASE + '/g/9990001/abcdef/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
+  await page.evaluate(() => document.querySelector('[data-act="fav"]').click());
+  await page.waitForSelector('#ehx-favcat', { timeout: 8000 });
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#ehx-fav-status');
+    return el && /default folders/i.test(el.textContent);
+  }, { timeout: 6000 });
+  ok('sheet opens before the popup is usable', await count('#ehx-favcat') === 1);
+  ok('default folders 0-9 offered', await page.$$eval('#ehx-favcat option', (els) => els.length) === 10, String(await page.$$eval('#ehx-favcat option', (els) => els.length)));
+  await page.select('#ehx-favcat', '2');
+  await page.evaluate(() => document.querySelector('[data-x="save"]').click());
+  await new Promise((r) => setTimeout(r, 700));
+  const fallbackPosted = await page.evaluate(() => fetch('/__lastpost').then((r) => r.json()));
+  ok('fallback POST sends the folder', /name="favcat"\r\n\r\n2/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
+  ok('fallback POST sends update/apply', /name="update"\r\n\r\n1/.test((fallbackPosted && fallbackPosted.body) || '') && /name="apply"\r\n\r\nAdd to Favorites/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
+  ok('fallback did not leave the app', (await page.evaluate(() => location.pathname)) === '/g/9990001/abcdef/', await page.evaluate(() => location.href));
 
   console.log('\nFavorites warm cache');
   await page.evaluate(() => window.__EHENTAI_APP__.clearCaches());

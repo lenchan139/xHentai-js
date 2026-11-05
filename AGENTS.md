@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **104 parser / 111 UI** assertions, both suites must pass
+- Current expectation: **104 parser / 119 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -271,10 +271,14 @@ stale async renders after the user navigates again.
   previews in a sheet appear together after that image downloads.
 - The first reader page is warmed in the background with `fetchDoc(firstThumb.href)`
   after the detail page renders.
-- Favorite opens an in-app sheet built from `gallerypopups.php?act=addfav`. The
-  popup has used both `<select name="favcat">` and radio buttons; the handler
-  accepts `[name="favcat"]` and labels radios from their row text. Removal is
-  `favdel` (current) or `-1` (older). Saving updates the button in place
+- Favorite opens an in-app sheet **immediately** with default folders 0–9 (plus
+  Remove when already favorited). The popup (`gallerypopups.php?act=addfav`)
+  loads in the background and only refines the folder default/note; it never
+  redirects if it is slow or unreadable. Saving without a parsed form posts
+  `update=1`, `apply`, `favcat` and `favnote` directly. The popup has used both
+  `<select name="favcat">` and radio buttons; the handler accepts
+  `[name="favcat"]` and labels radios from their row text. Removal is `favdel`
+  (current) or `-1` (older). Saving updates the button in place
   (`Saved`/`Favorite`, `.ehx-saved` blue highlight) instead of refetching the
   gallery. `isFavorited` comes from `#favoritelink`: “Add to Favorites” means no,
   a folder label (“Favorites 3”) or “Remove from Favorites” means yes.
@@ -325,6 +329,9 @@ stale async renders after the user navigates again.
   `IntersectionObserver` (`rootMargin: 1400px`); paged mode builds current ±1
   slides and uses scroll-snap.
 - `settings.preload` (1–4) controls `prefetchAround()`.
+- Tap zones are paged-only (`settings.tapZones && r.mode !== 'vertical'`); in
+  vertical mode every non-control tap toggles the chrome, because pages are
+  reached by scrolling.
 - Progress is saved per gallery on page change and on `pagehide`.
 
 ### Settings and storage
@@ -380,6 +387,10 @@ migrated there. Cookies stay in the browser's cookie store.
   **Original site** action.
 - A missing gallery (plain “Gallery not found…” body) and an empty favorites
   cursor both get a readable message.
+- Opening a detail page calls `historyStore.touch()` (preview first when
+  available, then the parsed gallery). `historyStore.touch` merges with the
+  previous entry so reader `index`/`pageUrl` survive later detail visits; entries
+  without a reader URL open the detail page.
 
 ### Persistent cache (`src/40-http-parsers.js`, `src/70-list.js`)
 

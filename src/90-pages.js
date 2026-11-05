@@ -395,7 +395,7 @@
 
     const entries = historyStore.list();
     if (!entries.length) {
-      app.main.innerHTML = emptyState('No reading history', 'Galleries you open in the reader will show up here, with your page position.', `<a class="ehx-btn" href="/">Browse galleries</a>`, 'history');
+      app.main.innerHTML = emptyState('No history yet', 'Galleries you open will show up here, with your page position once you start reading.', `<a class="ehx-btn" href="/">Browse galleries</a>`, 'history');
       return;
     }
 
