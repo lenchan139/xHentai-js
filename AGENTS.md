@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **104 parser / 119 UI** assertions, both suites must pass
+- Current expectation: **104 parser / 123 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -282,6 +282,13 @@ stale async renders after the user navigates again.
   (`Saved`/`Favorite`, `.ehx-saved` blue highlight) instead of refetching the
   gallery. `isFavorited` comes from `#favoritelink`: “Add to Favorites” means no,
   a folder label (“Favorites 3”) or “Remove from Favorites” means yes.
+- A save is only accepted when the response contains “The requested action has
+  been performed.” (both E-Hentai and ExHentai return it). Otherwise the sheet
+  stays open and the site text is toasted. Saving before the popup arrives waits
+  up to 3 s for hidden fields such as the E-Hentai `csrf`.
+- On success `clearFavoritesCache()` drops the in-memory list, the IndexedDB
+  `favorites` store, `listMemory` and cached `/favorites.php` HTML, so the
+  Favorites tab fetches the new list instead of showing a stale page.
 - Watched tags: list HTML does not mark `.gtw`, so `refreshWatchedTags()` fetches
   `/mytags` once per 12 hours, caches the tag names in `ehx.watchedTags`, and
   `applyWatchedTagClasses()` turns matching `.ehx-tag`/`.ehx-tagpill` elements

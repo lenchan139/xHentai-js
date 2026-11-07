@@ -82,6 +82,11 @@ const server = http.createServer(async (req, res) => {
       res.end(html);
       return;
     }
+    if (req.method === 'GET' && u.pathname === '/gallerypopups.php' && u.searchParams.get('gid') === '9990002') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('<html><body><form method="post" action=""><select name="favcat"><option value="0" selected="selected">Favorites 0</option><option value="1">Favorites 1</option></select><input type="hidden" name="update" value="1"><input type="submit" name="apply" value="Add to Favorites"></form></body></html>');
+      return;
+    }
     if (req.method === 'GET' && u.pathname === '/gallerypopups.php' && u.searchParams.get('gid') === '9990001') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end('<html><body><div class="d"><p>Favorite popup unavailable.</p></div></body></html>');
@@ -132,6 +137,22 @@ const server = http.createServer(async (req, res) => {
     if (u.searchParams.has('next')) nextRequests++;
     if (u.pathname === '/favorites.php' && !u.searchParams.has('next')) favRequests++;
     if (req.method === 'GET' && /^\/g\/\d+\//.test(u.pathname)) gRequests++;
+    if (req.method === 'POST' && u.pathname === '/gallerypopups.php' && u.searchParams.get('gid') === '9990002') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      lastPost = { url: req.url, body };
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('<html><body><div class="d"><p>You must be logged in to do that.</p></div></body></html>');
+      return;
+    }
+    if (req.method === 'POST' && u.pathname === '/gallerypopups.php') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      lastPost = { url: req.url, body };
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('<html><body><div class="d"><p>The requested action has been performed.</p></div></body></html>');
+      return;
+    }
     if (req.method === 'POST') {
       let body = '';
       for await (const chunk of req) body += chunk;
@@ -206,6 +227,18 @@ const step = (n) => { stepName = n; console.log('   · ' + n); };
 const txt = (sel) => page.$eval(sel, (el) => el.textContent.trim()).catch(() => '');
 const count = (sel) => page.$$eval(sel, (els) => els.length).catch(() => 0);
 const clickSel = (sel) => page.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, sel);
+const favStoreCount = () => page.evaluate(() => new Promise((resolve) => {
+  const req = indexedDB.open('ehx');
+  req.onsuccess = () => {
+    const db = req.result;
+    if (!db.objectStoreNames.contains('favorites')) { resolve(0); return; }
+    const tx = db.transaction('favorites', 'readonly');
+    const c = tx.objectStore('favorites').count();
+    c.onsuccess = () => resolve(c.result);
+    c.onerror = () => resolve(-1);
+  };
+  req.onerror = () => resolve(-1);
+}));
 
 try {
   await page.evaluateOnNewDocument(`
@@ -515,6 +548,12 @@ try {
   await page.click('.ehx-card');
   await page.waitForSelector('.ehx-dtitle', { timeout: 8000 });
   await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
+  await page.evaluate(() => window.__EHENTAI_APP__.clearCaches());
+  await new Promise((r) => setTimeout(r, 400));
+  await page.evaluate(() => window.__EHENTAI_APP__.preloadFavorites());
+  await new Promise((r) => setTimeout(r, 1800));
+  const favEntriesBefore = await favStoreCount();
+  ok('favorites cache persisted before the change', favEntriesBefore >= 1, String(favEntriesBefore));
   await page.click('[data-act="fav"]');
   await page.waitForSelector('.ehx-sheet', { timeout: 8000 });
   await page.waitForFunction(() => {
@@ -531,6 +570,8 @@ try {
   ok('favorite POST includes folder', /name="favcat"\r\n\r\n1/.test((posted && posted.body) || ''), JSON.stringify(posted));
   ok('favorite POST includes note', /name="favnote"\r\n\r\ntest note/.test((posted && posted.body) || ''), JSON.stringify(posted));
   ok('favorite POST preserves server token', /name="csrf"\r\n\r\ntest-token/.test((posted && posted.body) || ''), JSON.stringify(posted));
+  await new Promise((r) => setTimeout(r, 900));
+  ok('favoriting clears the persisted favorites cache', await favStoreCount() === 0, String(await favStoreCount()));
   ok('favorite sheet closed after save', await count('.ehx-sheet.ehx-open') === 0);
 
   console.log('\nFavorites form (radio popup, in-app)');
@@ -572,6 +613,22 @@ try {
   ok('fallback POST sends the folder', /name="favcat"\r\n\r\n2/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
   ok('fallback POST sends update/apply', /name="update"\r\n\r\n1/.test((fallbackPosted && fallbackPosted.body) || '') && /name="apply"\r\n\r\nAdd to Favorites/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
   ok('fallback did not leave the app', (await page.evaluate(() => location.pathname)) === '/g/9990001/abcdef/', await page.evaluate(() => location.href));
+
+  console.log('\nFavorites form (server rejects the change)');
+  await page.goto(BASE + '/g/9990002/abcdef/', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-act="fav"]', { timeout: 8000 });
+  await page.evaluate(() => document.querySelector('[data-act="fav"]').click());
+  await page.waitForSelector('#ehx-favcat', { timeout: 8000 });
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#ehx-fav-status');
+    return el && el.textContent === '';
+  }, { timeout: 6000 });
+  await page.evaluate(() => document.querySelector('[data-x="save"]').click());
+  await page.waitForFunction(() => /not updated/i.test((document.querySelector('#ehx-toast') || {}).textContent || ''), { timeout: 5000 });
+  ok('rejected save keeps the sheet open', await count('.ehx-sheet.ehx-open') === 1);
+  ok('rejected save does not mark the gallery saved', (await txt('[data-act="fav"]')) === 'Favorite', await txt('[data-act="fav"]'));
+  await page.evaluate(() => document.querySelector('[data-x="cancel"]').click());
+  await new Promise((r) => setTimeout(r, 350));
 
   console.log('\nFavorites warm cache');
   await page.evaluate(() => window.__EHENTAI_APP__.clearCaches());

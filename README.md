@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.7%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.8/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.8%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.8/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -43,6 +43,8 @@ plain JavaScript running in your own browser.
   or choose **Remove from Favorites**. Existing favorites show **Saved** with a
   blue highlight, and the sheet opens as **Update favorite**. If the popup cannot
   be read, the dialog still saves with the default folders instead of redirecting.
+  The Saved state is only shown after the site confirms the change, and the
+  Favorites list cache is cleared so the new favorite appears on the next visit.
 - **History** — opening a gallery adds it to History; reading merges your page
   position into the same entry.
 - **Reader** — vertical continuous or paged horizontal, width/contain fit,
@@ -75,15 +77,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.2.7 (cache-free):**
+**Direct install snapshot — v1.2.8 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.8/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.2.7](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
+- [Install v1.2.8](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.8/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -101,7 +103,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.2.7 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
+3. Open the [v1.2.8 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.8/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -112,7 +114,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.2.7 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.7/ehentai-app.user.js)
+   On My iPhone), then save the [v1.2.8 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.8/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -339,6 +341,12 @@ site. Favorites and ratings are the two account actions implemented in-app.
   resolution**; if it is set to **Original**, switch back to **Resampled**.
 - The image host is `hath.network`; a slow route or blocker on it will slow pages even
   though the HTML is fine.
+
+**A new favorite does not appear in Favorites**
+- The app now clears its in-memory, IndexedDB and list caches after a successful
+  change, so opening Favorites fetches the fresh list. If the site rejected the
+  change, the dialog stays open and shows the site’s message instead of pretending
+  it saved.
 
 **Favorites form does not open**
 - The site's favorites popup needs a valid session. Log in. The app handles both

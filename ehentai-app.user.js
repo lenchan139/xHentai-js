@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.7
+// @version      1.2.8
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.7';
+  const VERSION = '1.2.8';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -3108,6 +3108,25 @@
     return entry && entry.data && Array.isArray(entry.data.items) ? entry : null;
   }
 
+  // Adding or removing a favorite makes every cached favorites page stale.
+  // Clear the in-memory list, the IndexedDB copy, the back-navigation memory
+  // and any cached favorites HTML so the next visit fetches fresh data.
+  function clearFavoritesCache() {
+    try { favoritesCache.clear(); } catch { /* not initialised */ }
+    try { store.del(FAV_STORE); } catch { /* noop */ }
+    try { idbClear('favorites').catch(() => { /* noop */ }); } catch { /* noop */ }
+    try {
+      for (const key of [...listMemory.keys()]) {
+        if (/favorites\.php/i.test(key)) listMemory.delete(key);
+      }
+    } catch { /* noop */ }
+    try {
+      for (const key of [...htmlCache.keys()]) {
+        if (/favorites\.php/i.test(key)) htmlCache.delete(key);
+      }
+    } catch { /* noop */ }
+  }
+
   function backgroundFavoritesRefresh(url) {
     if (favRefreshing.has(url)) return;
     favRefreshing.add(url);
@@ -4054,9 +4073,10 @@
       let form = null;
       let rec = null;
       let touched = false;
+      let popupSettled = false;
       selectEl.addEventListener('change', () => { touched = true; });
 
-      fetchDoc(urlPopup, { force: true })
+      const popupPromise = fetchDoc(urlPopup, { force: true })
         .then((r) => {
           if (!s.sheet.isConnected) return;
           rec = r;
@@ -4101,12 +4121,18 @@
           const note = found.querySelector('[name="favnote"]');
           if (note && !noteField.value) noteField.value = note.value;
         })
-        .catch(() => { if (statusEl) statusEl.textContent = 'Using default folders.'; });
+        .catch(() => { if (statusEl) statusEl.textContent = 'Using default folders.'; })
+        .finally(() => { popupSettled = true; });
 
       s.sheet.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-x]');
         if (!b) return;
         if (b.dataset.x === 'cancel') { s.close(); return; }
+        // Saving before the popup arrives would miss hidden tokens (csrf on
+        // E-Hentai). Give it a short grace period, then fall back to defaults.
+        if (!form && !popupSettled) {
+          await Promise.race([popupPromise, new Promise((resolve) => setTimeout(resolve, 3000))]);
+        }
         const cat = selectEl.value;
         const removed = isRemoveValue(cat);
         let fd;
@@ -4124,8 +4150,14 @@
         try {
           const res = await postForm(absAction, fd, { priority: true });
           if (loginPage(res.doc)) { openLoginSheet(); return; }
+          const bodyText = text(res.doc && res.doc.body) || res.text || '';
+          if (!res.ok || !/requested action has been performed/i.test(bodyText)) {
+            const why = bodyText ? bodyText.slice(0, 180) : 'the site did not confirm the change';
+            toast('Favorites not updated — ' + why);
+            return;
+          }
           data.isFavorited = !removed;
-          try { favoritesCache.clear(); } catch { /* noop */ }
+          clearFavoritesCache();
           const favBtn = document.querySelector('.ehx-action[data-act="fav"]');
           if (favBtn) {
             favBtn.classList.toggle('ehx-saved', !removed);

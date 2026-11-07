@@ -18,6 +18,25 @@
     return entry && entry.data && Array.isArray(entry.data.items) ? entry : null;
   }
 
+  // Adding or removing a favorite makes every cached favorites page stale.
+  // Clear the in-memory list, the IndexedDB copy, the back-navigation memory
+  // and any cached favorites HTML so the next visit fetches fresh data.
+  function clearFavoritesCache() {
+    try { favoritesCache.clear(); } catch { /* not initialised */ }
+    try { store.del(FAV_STORE); } catch { /* noop */ }
+    try { idbClear('favorites').catch(() => { /* noop */ }); } catch { /* noop */ }
+    try {
+      for (const key of [...listMemory.keys()]) {
+        if (/favorites\.php/i.test(key)) listMemory.delete(key);
+      }
+    } catch { /* noop */ }
+    try {
+      for (const key of [...htmlCache.keys()]) {
+        if (/favorites\.php/i.test(key)) htmlCache.delete(key);
+      }
+    } catch { /* noop */ }
+  }
+
   function backgroundFavoritesRefresh(url) {
     if (favRefreshing.has(url)) return;
     favRefreshing.add(url);
