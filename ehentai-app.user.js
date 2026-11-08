@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.8
+// @version      1.2.9
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.8';
+  const VERSION = '1.2.9';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -1397,11 +1397,24 @@
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), IS_EX ? 45000 : 25000);
       try {
+        // E-Hentai answers multipart/form-data POSTs to gallerypopups.php with
+        // "403 Forbidden Request forbidden by administrative rules." Its forms
+        // are ordinary application/x-www-form-urlencoded forms, so encode
+        // FormData that way (spaces become '+', UTF-8 is percent-encoded).
+        let body = formData;
+        const headers = {};
+        if (typeof FormData !== 'undefined' && formData instanceof FormData) {
+          const params = new URLSearchParams();
+          for (const [key, value] of formData.entries()) params.append(key, String(value));
+          body = params;
+          headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        }
+        if (referer) headers.Referer = referer;
         const res = await fetch(abs, {
           method: 'POST',
           credentials: 'same-origin',
-          body: formData,
-          headers: referer ? { Referer: referer } : undefined,
+          body,
+          headers: Object.keys(headers).length ? headers : undefined,
           signal: ctrl.signal,
         });
         const html = await res.text();

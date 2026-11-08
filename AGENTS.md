@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **104 parser / 123 UI** assertions, both suites must pass
+- Current expectation: **104 parser / 124 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -282,6 +282,10 @@ stale async renders after the user navigates again.
   (`Saved`/`Favorite`, `.ehx-saved` blue highlight) instead of refetching the
   gallery. `isFavorited` comes from `#favoritelink`: “Add to Favorites” means no,
   a folder label (“Favorites 3”) or “Remove from Favorites” means yes.
+- `postForm` encodes a `FormData` body as `application/x-www-form-urlencoded`
+  before sending. E-Hentai answers a multipart POST to `gallerypopups.php` with
+  “403 Forbidden Request forbidden by administrative rules.”; its own forms are
+  urlencoded (spaces become `+`).
 - A save is only accepted when the response contains “The requested action has
   been performed.” (both E-Hentai and ExHentai return it). Otherwise the sheet
   stays open and the site text is toasted. Saving before the popup arrives waits

@@ -567,9 +567,10 @@ try {
   await page.click('[data-x="save"]');
   await new Promise((r) => setTimeout(r, 700));
   const posted = await page.evaluate(() => fetch('/__lastpost').then((r) => r.json()));
-  ok('favorite POST includes folder', /name="favcat"\r\n\r\n1/.test((posted && posted.body) || ''), JSON.stringify(posted));
-  ok('favorite POST includes note', /name="favnote"\r\n\r\ntest note/.test((posted && posted.body) || ''), JSON.stringify(posted));
-  ok('favorite POST preserves server token', /name="csrf"\r\n\r\ntest-token/.test((posted && posted.body) || ''), JSON.stringify(posted));
+  ok('favorite POST includes folder', /(?:^|&)favcat=1(?:&|$)/.test((posted && posted.body) || ''), JSON.stringify(posted));
+  ok('favorite POST includes note', /(?:^|&)favnote=test\+note(?:&|$)/.test((posted && posted.body) || ''), JSON.stringify(posted));
+  ok('favorite POST preserves server token', /(?:^|&)csrf=test-token(?:&|$)/.test((posted && posted.body) || ''), JSON.stringify(posted));
+  ok('favorite POST is urlencoded', /(?:^|&)favcat=/.test((posted && posted.body) || '') && !/Content-Disposition/.test((posted && posted.body) || ''), JSON.stringify(posted));
   await new Promise((r) => setTimeout(r, 900));
   ok('favoriting clears the persisted favorites cache', await favStoreCount() === 0, String(await favStoreCount()));
   ok('favorite sheet closed after save', await count('.ehx-sheet.ehx-open') === 0);
@@ -590,7 +591,7 @@ try {
   await page.evaluate(() => document.querySelector('[data-x="save"]').click());
   await new Promise((r) => setTimeout(r, 700));
   const favPosted = await page.evaluate(() => fetch('/__lastpost').then((r) => r.json()));
-  ok('remove POST sends favdel', /name="favcat"\r\n\r\nfavdel/.test((favPosted && favPosted.body) || ''), JSON.stringify(favPosted));
+  ok('remove POST sends favdel', /(?:^|&)favcat=favdel(?:&|$)/.test((favPosted && favPosted.body) || ''), JSON.stringify(favPosted));
   ok('favorite action resets after removing', (await txt('[data-act="fav"]')) === 'Favorite', await txt('[data-act="fav"]'));
   ok('saved highlight clears after removing', !(await page.$eval('[data-act="fav"]', (el) => el.classList.contains('ehx-saved'))));
   ok('radio favorite sheet closed', await count('.ehx-sheet.ehx-open') === 0);
@@ -610,8 +611,8 @@ try {
   await page.evaluate(() => document.querySelector('[data-x="save"]').click());
   await new Promise((r) => setTimeout(r, 700));
   const fallbackPosted = await page.evaluate(() => fetch('/__lastpost').then((r) => r.json()));
-  ok('fallback POST sends the folder', /name="favcat"\r\n\r\n2/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
-  ok('fallback POST sends update/apply', /name="update"\r\n\r\n1/.test((fallbackPosted && fallbackPosted.body) || '') && /name="apply"\r\n\r\nAdd to Favorites/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
+  ok('fallback POST sends the folder', /(?:^|&)favcat=2(?:&|$)/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
+  ok('fallback POST sends update/apply', /(?:^|&)update=1(?:&|$)/.test((fallbackPosted && fallbackPosted.body) || '') && /(?:^|&)apply=Add\+to\+Favorites(?:&|$)/.test((fallbackPosted && fallbackPosted.body) || ''), JSON.stringify(fallbackPosted));
   ok('fallback did not leave the app', (await page.evaluate(() => location.pathname)) === '/g/9990001/abcdef/', await page.evaluate(() => location.href));
 
   console.log('\nFavorites form (server rejects the change)');
