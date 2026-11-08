@@ -86,7 +86,7 @@
   }
 
   function bindReaderEvents(r) {
-    r.scroll.addEventListener('scroll', () => {
+    r.view.addEventListener('scroll', () => {
       if (r.mode === 'paged') onPagedScroll(r);
     }, { passive: true });
 
@@ -133,18 +133,18 @@
     });
 
     let touch = null;
-    r.scroll.addEventListener('touchstart', (e) => {
+    r.view.addEventListener('touchstart', (e) => {
       const t = e.touches[0];
       if (t) touch = { x: t.clientX, y: t.clientY };
       r.swiped = false;
     }, { passive: true });
-    r.scroll.addEventListener('touchmove', (e) => {
+    r.view.addEventListener('touchmove', (e) => {
       if (!touch) return;
       const t = e.touches[0];
       if (!t) return;
       if (Math.abs(t.clientX - touch.x) > 12 || Math.abs(t.clientY - touch.y) > 12) r.swiped = true;
     }, { passive: true });
-    r.scroll.addEventListener('touchend', () => {
+    r.view.addEventListener('touchend', () => {
       setTimeout(() => { r.swiped = false; }, 320);
     }, { passive: true });
 

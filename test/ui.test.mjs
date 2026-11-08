@@ -388,6 +388,7 @@ try {
   await page.click('[data-r="next"]');
   await page.waitForFunction(() => document.querySelector('.ehx-rcount')?.textContent.trim().startsWith('2 /'), { timeout: 8000 });
   ok('next page updates counter', (await txt('.ehx-rcount')) === '2 / 18', await txt('.ehx-rcount'));
+  ok('vertical reader scrolls the document', await page.evaluate(() => window.scrollY > 0), String(await page.evaluate(() => window.scrollY)));
   ok('reader used the showpage API', showpageRequests > 0, String(showpageRequests));
 
   console.log('   · reader jump');
@@ -554,6 +555,9 @@ try {
   await new Promise((r) => setTimeout(r, 1800));
   const favEntriesBefore = await favStoreCount();
   ok('favorites cache persisted before the change', favEntriesBefore >= 1, String(favEntriesBefore));
+  // Let the deferred favorites warm-up (5s + idle) finish so it cannot
+  // repopulate the cache right after the favorite change.
+  await new Promise((r) => setTimeout(r, 4200));
   await page.click('[data-act="fav"]');
   await page.waitForSelector('.ehx-sheet', { timeout: 8000 });
   await page.waitForFunction(() => {

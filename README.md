@@ -12,8 +12,8 @@ plain JavaScript running in your own browser.
 **Repository:** <https://github.com/lenchan139/xHentai-js>  
 **Issues:** <https://github.com/lenchan139/xHentai-js/issues>
 
-[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.9/ehentai-app.user.js)
-[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.2.9%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.9/ehentai-app.user.js)
+[![Install / update](https://img.shields.io/badge/install%20%2F%20update-userscript-6750a4?style=for-the-badge)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.3.0/ehentai-app.user.js)
+[![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Flenchan139%2FxHentai-js%2Fv1.3.0%2Fpackage.json&query=%24.version&label=version&color=6750a4)](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.3.0/ehentai-app.user.js)
 [![GitHub](https://img.shields.io/badge/GitHub-lenchan139%2FxHentai--js-181717?logo=github)](https://github.com/lenchan139/xHentai-js)
 
 | Home | Detail | Reader |
@@ -77,15 +77,15 @@ plain JavaScript running in your own browser.
 
 ## Download
 
-**Direct install snapshot — v1.2.9 (cache-free):**
+**Direct install snapshot — v1.3.0 (cache-free):**
 
-<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.9/ehentai-app.user.js>
+<https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.3.0/ehentai-app.user.js>
 
 **Auto-update source — always `main`:**
 
 <https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js>
 
-- [Install v1.2.9](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.9/ehentai-app.user.js)
+- [Install v1.3.0](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.3.0/ehentai-app.user.js)
 - [Open main raw](https://raw.githubusercontent.com/lenchan139/xHentai-js/main/ehentai-app.user.js)
 - [GitHub repository](https://github.com/lenchan139/xHentai-js)
 - [Built file in the repository](ehentai-app.user.js)
@@ -103,7 +103,7 @@ mainstream userscript manager.
 2. Open **Settings → Safari → Extensions → Tampermonkey**, enable it, and allow it
    on `e-hentai.org` and `exhentai.org`. The **AA** menu → **Manage Extensions** also
    works.
-3. Open the [v1.2.9 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.9/ehentai-app.user.js)
+3. Open the [v1.3.0 install link](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.3.0/ehentai-app.user.js)
    in Safari. If Safari shows the script as text instead, open the Tampermonkey app,
    tap **+**, paste the contents, and save.
 4. Visit `https://e-hentai.org/` (and `https://exhentai.org/`).
@@ -114,7 +114,7 @@ mainstream userscript manager.
 2. Enable it in **Settings → Safari → Extensions → Userscripts** and allow it on both
    sites.
 3. In the Userscripts app, choose a scripts directory in Files (iCloud Drive or
-   On My iPhone), then save the [v1.2.9 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.2.9/ehentai-app.user.js)
+   On My iPhone), then save the [v1.3.0 userscript](https://raw.githubusercontent.com/lenchan139/xHentai-js/v1.3.0/ehentai-app.user.js)
    into it as `ehentai-app.user.js`.
 4. Reload the site in Safari.
 
@@ -207,6 +207,8 @@ the cookie method is the reliable one.
 - Paged mode: tap the **left/right third** to go to the previous/next page, or
   swipe horizontally; pages snap.
 - Vertical mode: scroll continuously; tapping the edges does **not** jump pages.
+  Vertical reading scrolls the page itself, so Safari can collapse its
+  address/tool bars while you read (the reader controls stay fixed).
 - Use the range slider or the counter pill for fast navigation.
 - Menu: reading mode, image fit, image resolution, jump, reload, open image,
   gallery, original page, share.
@@ -358,11 +360,12 @@ site. Favorites and ratings are the two account actions implemented in-app.
   select layout; it only opens the original popup if that HTML cannot be read.
 
 **Safari’s address bar does not hide while scrolling**
-- Fixed in 1.2.6 for list and gallery pages: horizontal clipping now uses
-  `overflow-x: clip`, so the page is the real scroll container and Safari can
-  collapse its toolbars (this also keeps the top bar sticky). The reader is a
-  fixed full-screen overlay with its own scroll area, so Safari keeps its bars
-  there.
+- List and gallery pages use `overflow-x: clip`, so the page is the real scroll
+  container and Safari can collapse its toolbars (this also keeps the top bar
+  sticky).
+- Vertical reading now scrolls the document too, so Safari collapses its bars
+  while you read. Paged reading is still a fixed full-screen overlay, so Safari
+  may keep its bars there.
 
 **Infinite scroll stops**
 - The site did not provide a Next link for that page (common on Popular or when not

@@ -263,7 +263,7 @@
     for (const el of Array.from(document.querySelectorAll('.ehx-reader'))) {
       if (!app.reader || el !== app.reader.root) el.remove();
     }
-    if (!app.reader) document.body.style.overflow = '';
+    document.body.style.overflow = app.reader && !app.reader.useDocScroll ? 'hidden' : '';
   }
 
   function showError(err) {
@@ -413,7 +413,9 @@
       setTimeout(() => {
         scrim.remove();
         sheet.remove();
-        if (!app.sheets.length && !app.reader) document.body.style.overflow = '';
+        if (!app.sheets.length) {
+          document.body.style.overflow = app.reader && !app.reader.useDocScroll ? 'hidden' : '';
+        }
       }, 270);
     };
     scrim.addEventListener('click', close);
@@ -431,7 +433,7 @@
       s.sheet.remove();
       app.sheets.pop();
     }
-    if (!app.reader) document.body.style.overflow = '';
+    document.body.style.overflow = app.reader && !app.reader.useDocScroll ? 'hidden' : '';
   }
 
   function confirmSheet(title, message, { ok = 'OK', cancel = 'Cancel', danger = false } = {}) {
@@ -985,7 +987,14 @@
     onAction('back', () => goBack());
     onAction('drawer', () => openDrawer());
     onAction('close-drawer', () => closeDrawer());
-    onAction('close-sheet', () => { const s = app.sheets[app.sheets.length - 1]; if (s) { s.scrim.remove(); s.sheet.remove(); app.sheets.pop(); document.body.style.overflow = app.sheets.length ? 'hidden' : ''; } });
+    onAction('close-sheet', () => {
+      const s = app.sheets[app.sheets.length - 1];
+      if (!s) return;
+      s.scrim.remove();
+      s.sheet.remove();
+      app.sheets.pop();
+      document.body.style.overflow = app.sheets.length || (app.reader && !app.reader.useDocScroll) ? 'hidden' : '';
+    });
     onAction('home', () => navigate('/'));
     onAction('scroll-top', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
     onAction('search', () => { app.searchBase = searchBaseUrl(); navigate('/#ehx-search'); });

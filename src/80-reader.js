@@ -193,11 +193,15 @@
 
     r.mode = settings.readerMode === 'paged' ? 'paged' : 'vertical';
     r.fit = settings.readerFit === 'contain' ? 'contain' : 'width';
+    r.useDocScroll = r.mode === 'vertical';
+    if (app.root) app.root.classList.add('ehx-reading');
     r.root.className = `ehx-reader ${r.mode === 'paged' ? 'ehx-paged' : 'ehx-vertical'}${r.fit === 'contain' ? ' ehx-fit-contain' : ''}`;
-    r.scroll.className = 'ehx-rscroll';
-    r.scroll.innerHTML = '';
-    r.scroll.scrollTop = 0;
-    r.scroll.scrollLeft = 0;
+    document.body.style.overflow = r.useDocScroll ? '' : 'hidden';
+    r.view.className = 'ehx-rscroll';
+    r.view.innerHTML = '';
+    r.view.scrollTop = 0;
+    r.view.scrollLeft = 0;
+    if (r.useDocScroll) window.scrollTo(0, 0);
     r.slotEls = [];
 
     if (r.mode === 'paged') buildPagedLayout(r);
@@ -218,13 +222,14 @@
       r.slotEls[i] = el;
       frag.appendChild(el);
     }
-    r.scroll.appendChild(frag);
+    r.view.appendChild(frag);
 
+    const ioRoot = r.useDocScroll ? null : r.view;
     r.ioLoad = new IntersectionObserver((entries) => {
       for (const en of entries) {
         if (en.isIntersecting) loadSlot(r, en.target);
       }
-    }, { root: r.scroll, rootMargin: '1400px 0px' });
+    }, { root: ioRoot, rootMargin: '1400px 0px' });
 
     const visible = new Map();
     r.ioVisible = new IntersectionObserver((entries) => {
@@ -238,7 +243,7 @@
         if (ratio >= 0.45 && (!best || ratio > best.ratio)) best = { idx: i, ratio };
       }
       if (best && best.idx !== r.index) setReaderIndex(r, best.idx, { scroll: false, fromVisible: true });
-    }, { root: r.scroll, threshold: [0, 0.15, 0.45, 0.7, 0.95] });
+    }, { root: ioRoot, threshold: [0, 0.15, 0.45, 0.7, 0.95] });
 
     for (let i = 1; i <= total; i++) {
       const el = r.slotEls[i];
@@ -246,9 +251,20 @@
     }
 
     loadSlot(r, r.slotEls[r.index]);
-    requestAnimationFrame(() => {
+    const jumpToCurrent = () => {
       const el = r.slotEls[r.index];
-      if (el) r.scroll.scrollTop = el.offsetTop;
+      if (!el) return;
+      if (r.useDocScroll) {
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior: 'auto' });
+      } else {
+        r.view.scrollTop = el.offsetTop;
+      }
+    };
+    // Do it now as well: background tabs throttle rAF, and switching from
+    // paged mode should land on the current page immediately.
+    jumpToCurrent();
+    requestAnimationFrame(() => {
+      jumpToCurrent();
       updateChrome(r);
     });
   }
@@ -263,18 +279,18 @@
         slides.push(`<div class="ehx-rpage" data-idx="${i}" style="aspect-ratio:auto;height:100dvh"></div>`);
       }
     }
-    r.scroll.innerHTML = slides.join('');
+    r.view.innerHTML = slides.join('');
     r.slotEls = [];
-    for (const el of Array.from(r.scroll.children)) {
+    for (const el of Array.from(r.view.children)) {
       if (el.dataset.idx) r.slotEls[parseInt(el.dataset.idx, 10)] = el;
     }
     for (let i = r.pagedBase; i <= r.pagedBase + 2; i++) {
       if (r.slotEls[i]) loadSlot(r, r.slotEls[i]);
     }
     requestAnimationFrame(() => {
-      const w = r.scroll.clientWidth;
+      const w = r.view.clientWidth;
       r.suppressScroll = true;
-      r.scroll.scrollLeft = w;
+      r.view.scrollLeft = w;
       setTimeout(() => { r.suppressScroll = false; }, 220);
     });
   }
@@ -284,8 +300,8 @@
     clearTimeout(r.pagedTimer);
     r.pagedTimer = setTimeout(() => {
       if (!reader || reader !== r) return;
-      const w = r.scroll.clientWidth || window.innerWidth;
-      const pos = Math.round(r.scroll.scrollLeft / w);
+      const w = r.view.clientWidth || window.innerWidth;
+      const pos = Math.round(r.view.scrollLeft / w);
       const target = r.pagedBase + pos;
       if (target !== r.index && target >= 1 && target <= (r.total || 1)) {
         setReaderIndex(r, target, { fromSwipe: true });
@@ -397,7 +413,13 @@
     if (r.mode === 'vertical') {
       if (opts.scroll !== false) {
         const el = r.slotEls[next];
-        if (el) r.scroll.scrollTo({ top: el.offsetTop, behavior: 'auto' });
+        if (el) {
+          if (r.useDocScroll) {
+            window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior: 'auto' });
+          } else {
+            r.view.scrollTop = el.offsetTop;
+          }
+        }
       }
     } else {
       renderReaderLayout(r);
@@ -481,6 +503,7 @@
     if (r.root && r.root.parentNode) r.root.remove();
     document.body.style.overflow = '';
     app.root.classList.remove('ehx-no-tabbar');
+    app.root.classList.remove('ehx-reading');
     renderTabbar();
   }
 
@@ -516,6 +539,8 @@
     document.body.appendChild(root);
     document.body.style.overflow = 'hidden';
     app.root.classList.add('ehx-no-tabbar');
+    app.root.classList.add('ehx-reading');
+    window.scrollTo(0, 0);
 
     let first = null;
     if (initialDoc) {
@@ -529,12 +554,14 @@
           root.remove();
           document.body.style.overflow = '';
           app.root.classList.remove('ehx-no-tabbar');
+          app.root.classList.remove('ehx-reading');
           return;
         }
         if (sadPanda(rec.doc) || loginPage(rec.doc)) {
           root.remove();
           document.body.style.overflow = '';
           app.root.classList.remove('ehx-no-tabbar');
+          app.root.classList.remove('ehx-reading');
           app.tab = 'home';
           renderTabbar();
           readerFallbackTopbar();
@@ -549,6 +576,7 @@
         if (opts.seq && opts.seq !== app.navSeq) return;
         document.body.style.overflow = '';
         app.root.classList.remove('ehx-no-tabbar');
+        app.root.classList.remove('ehx-reading');
         app.tab = 'home';
         renderTabbar();
         readerFallbackTopbar();
@@ -561,6 +589,7 @@
       root.remove();
       document.body.style.overflow = '';
       app.root.classList.remove('ehx-no-tabbar');
+      app.root.classList.remove('ehx-reading');
       app.tab = 'home';
       renderTabbar();
       readerFallbackTopbar();
@@ -630,7 +659,8 @@
       <div class="ehx-rscroll"></div>
       <div class="ehx-rchrome"></div>
       <div class="ehx-rhint"></div>`;
-    r.scroll = root.querySelector('.ehx-rscroll');
+    r.view = root.querySelector('.ehx-rscroll');
+    r.useDocScroll = false;
     r.chrome = root.querySelector('.ehx-rchrome');
 
     buildReaderChrome(r);

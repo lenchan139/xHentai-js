@@ -426,6 +426,21 @@
   }
   .ehx-reader.ehx-vertical{touch-action:pan-y pinch-zoom}
   .ehx-reader.ehx-paged{touch-action:pan-x pinch-zoom}
+  /* Vertical reading scrolls the document (not an inner box) so iOS Safari
+     can collapse its address/tool bars while reading. The chrome stays
+     fixed to the viewport. */
+  .ehx-reader.ehx-vertical{
+    position:relative;inset:auto;display:block;min-height:100dvh;
+  }
+  .ehx-reader.ehx-vertical .ehx-rscroll{
+    position:relative;inset:auto;height:auto;overflow:visible;
+    overscroll-behavior-y:auto;
+  }
+  .ehx-reader.ehx-vertical .ehx-rchrome,
+  .ehx-reader.ehx-vertical .ehx-rprogress,
+  .ehx-reader.ehx-vertical .ehx-rhint{position:fixed}
+  #${APP_ID}.ehx-reading{min-height:0;height:0;padding:0;background:transparent;overflow:visible}
+  #${APP_ID}.ehx-reading > :not(#ehx-layer){display:none!important}
   .ehx-rscroll{
     position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
     -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;

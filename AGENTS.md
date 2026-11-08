@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **104 parser / 124 UI** assertions, both suites must pass
+- Current expectation: **104 parser / 125 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -238,8 +238,13 @@ stale async renders after the user navigates again.
   turns the element into a scroll container: the sticky top bar stops sticking
   and iOS Safari keeps its address/toolbars expanded instead of collapsing on
   scroll.
-- The reader is a fixed full-screen overlay with its own scroller, so iOS does
-  not collapse its toolbars while reading; list/detail pages do.
+- Vertical reading scrolls the **document**: `#ehx-app` collapses to height 0
+  (its `#ehx-layer` stays visible for reader sheets), `.ehx-reader` becomes
+  `position: relative`, and `.ehx-rscroll` is a plain in-flow container. The
+  chrome/progress/hint are `position: fixed`. This lets iOS Safari collapse its
+  toolbars while reading.
+- Paged reading keeps the fixed full-screen overlay and its internal horizontal
+  scroller.
 
 ### Scroll-to-top FAB (`src/60-app.js`)
 
@@ -337,8 +342,10 @@ stale async renders after the user navigates again.
 - If an original fails to load, `loadSlot()` retries with `rec.resampled` once
   and shows a toast.
 - Vertical mode builds one placeholder per page and loads via an
-  `IntersectionObserver` (`rootMargin: 1400px`); paged mode builds current ±1
-  slides and uses scroll-snap.
+  `IntersectionObserver` (`rootMargin: 1400px`). The container is `r.view`;
+  vertical mode uses the document as the scroll target (`window.scrollTo`,
+  `root: null` observers), while paged mode keeps `r.view` as the horizontal
+  snap scroller. Paged mode builds current ±1 slides.
 - `settings.preload` (1–4) controls `prefetchAround()`.
 - Tap zones are paged-only (`settings.tapZones && r.mode !== 'vertical'`); in
   vertical mode every non-control tap toggles the chrome, because pages are

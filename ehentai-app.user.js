@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         E-Hentai App — JHenTai-style mobile UX
 // @namespace    ehentai-app-userscript
-// @version      1.2.9
+// @version      1.3.0
 // @description  Turns e-hentai.org / exhentai.org into a fast, native-feeling mobile app: gallery grid, detail page, reader, search, favorites, history and settings.
 // @author       E-Hentai App contributors
 // @license      MIT
@@ -36,7 +36,7 @@
   // Constants & tiny helpers
   // ---------------------------------------------------------------------------
 
-  const VERSION = '1.2.9';
+  const VERSION = '1.3.0';
   const LS = 'ehx.';
   const APP_ID = 'ehx-app';
   const IS_EX = /(^|\.)exhentai\.org$/i.test(location.hostname);
@@ -967,6 +967,21 @@
   }
   .ehx-reader.ehx-vertical{touch-action:pan-y pinch-zoom}
   .ehx-reader.ehx-paged{touch-action:pan-x pinch-zoom}
+  /* Vertical reading scrolls the document (not an inner box) so iOS Safari
+     can collapse its address/tool bars while reading. The chrome stays
+     fixed to the viewport. */
+  .ehx-reader.ehx-vertical{
+    position:relative;inset:auto;display:block;min-height:100dvh;
+  }
+  .ehx-reader.ehx-vertical .ehx-rscroll{
+    position:relative;inset:auto;height:auto;overflow:visible;
+    overscroll-behavior-y:auto;
+  }
+  .ehx-reader.ehx-vertical .ehx-rchrome,
+  .ehx-reader.ehx-vertical .ehx-rprogress,
+  .ehx-reader.ehx-vertical .ehx-rhint{position:fixed}
+  #${APP_ID}.ehx-reading{min-height:0;height:0;padding:0;background:transparent;overflow:visible}
+  #${APP_ID}.ehx-reading > :not(#ehx-layer){display:none!important}
   .ehx-rscroll{
     position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
     -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
@@ -2272,7 +2287,7 @@
     for (const el of Array.from(document.querySelectorAll('.ehx-reader'))) {
       if (!app.reader || el !== app.reader.root) el.remove();
     }
-    if (!app.reader) document.body.style.overflow = '';
+    document.body.style.overflow = app.reader && !app.reader.useDocScroll ? 'hidden' : '';
   }
 
   function showError(err) {
@@ -2422,7 +2437,9 @@
       setTimeout(() => {
         scrim.remove();
         sheet.remove();
-        if (!app.sheets.length && !app.reader) document.body.style.overflow = '';
+        if (!app.sheets.length) {
+          document.body.style.overflow = app.reader && !app.reader.useDocScroll ? 'hidden' : '';
+        }
       }, 270);
     };
     scrim.addEventListener('click', close);
@@ -2440,7 +2457,7 @@
       s.sheet.remove();
       app.sheets.pop();
     }
-    if (!app.reader) document.body.style.overflow = '';
+    document.body.style.overflow = app.reader && !app.reader.useDocScroll ? 'hidden' : '';
   }
 
   function confirmSheet(title, message, { ok = 'OK', cancel = 'Cancel', danger = false } = {}) {
@@ -2994,7 +3011,14 @@
     onAction('back', () => goBack());
     onAction('drawer', () => openDrawer());
     onAction('close-drawer', () => closeDrawer());
-    onAction('close-sheet', () => { const s = app.sheets[app.sheets.length - 1]; if (s) { s.scrim.remove(); s.sheet.remove(); app.sheets.pop(); document.body.style.overflow = app.sheets.length ? 'hidden' : ''; } });
+    onAction('close-sheet', () => {
+      const s = app.sheets[app.sheets.length - 1];
+      if (!s) return;
+      s.scrim.remove();
+      s.sheet.remove();
+      app.sheets.pop();
+      document.body.style.overflow = app.sheets.length || (app.reader && !app.reader.useDocScroll) ? 'hidden' : '';
+    });
     onAction('home', () => navigate('/'));
     onAction('scroll-top', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
     onAction('search', () => { app.searchBase = searchBaseUrl(); navigate('/#ehx-search'); });
@@ -3111,6 +3135,7 @@
   const FAVORITES_TTL = 300000;
   const FAV_STORE = 'favorites';
   const favRefreshing = new Set();
+  let favEpoch = 0;
 
   function persistFavorites(url, data) {
     persistFavoritesEntry(url, data);
@@ -3125,6 +3150,7 @@
   // Clear the in-memory list, the IndexedDB copy, the back-navigation memory
   // and any cached favorites HTML so the next visit fetches fresh data.
   function clearFavoritesCache() {
+    favEpoch += 1;
     try { favoritesCache.clear(); } catch { /* not initialised */ }
     try { store.del(FAV_STORE); } catch { /* noop */ }
     try { idbClear('favorites').catch(() => { /* noop */ }); } catch { /* noop */ }
@@ -3143,8 +3169,10 @@
   function backgroundFavoritesRefresh(url) {
     if (favRefreshing.has(url)) return;
     favRefreshing.add(url);
+    const epoch = favEpoch;
     fetchDoc(url, { force: true })
       .then((rec) => {
+        if (epoch !== favEpoch) return;
         const d = parseList(rec.doc, rec.url);
         if (!d.loggedOut && !d.sad) {
           favoritesCache.set(url, { at: Date.now(), data: d });
@@ -3249,14 +3277,17 @@
 
   async function preloadFavorites() {
     if (app.route && (app.route.name === 'reader' || app.route.kind === 'favorites.php')) return;
+    const epoch = favEpoch;
     const url = canonicalListUrl('/favorites.php');
     const persisted = await persistedFavorites(url);
+    if (epoch !== favEpoch) return;
     if (persisted && !favoritesCache.has(url)) favoritesCache.set(url, { at: persisted.at, data: persisted.data });
     const hit = favoritesCache.get(url);
     const weakHit = hit && hit.data && hit.data.items && hit.data.items.length && hit.data.items.every((g) => !g.cover);
     if (hit && !weakHit && Date.now() - hit.at < FAVORITES_TTL) return;
     fetchDoc(url, { ttl: 120000 })
       .then((rec) => {
+        if (epoch !== favEpoch) return;
         const data = parseList(rec.doc, rec.url);
         if (!data.loggedOut && !data.sad) {
           favoritesCache.set(url, { at: Date.now(), data });
@@ -3346,6 +3377,7 @@
     const title = listTitle(route, url);
     const isFav = route.kind === 'favorites.php';
     const favUrl = isFav ? canonicalListUrl(url) : '';
+    const favEpochAtStart = favEpoch;
 
     // Draw the shell immediately.
     const isTab = !q && ['home', 'popular', 'favorites.php', 'watched'].includes(route.kind);
@@ -3435,7 +3467,7 @@
       return;
     }
 
-    if (isFav && !fromCache) {
+    if (isFav && !fromCache && favEpochAtStart === favEpoch) {
       favoritesCache.set(favUrl, { at: Date.now(), data });
       persistFavorites(favUrl, data);
     }
@@ -4489,11 +4521,15 @@
 
     r.mode = settings.readerMode === 'paged' ? 'paged' : 'vertical';
     r.fit = settings.readerFit === 'contain' ? 'contain' : 'width';
+    r.useDocScroll = r.mode === 'vertical';
+    if (app.root) app.root.classList.add('ehx-reading');
     r.root.className = `ehx-reader ${r.mode === 'paged' ? 'ehx-paged' : 'ehx-vertical'}${r.fit === 'contain' ? ' ehx-fit-contain' : ''}`;
-    r.scroll.className = 'ehx-rscroll';
-    r.scroll.innerHTML = '';
-    r.scroll.scrollTop = 0;
-    r.scroll.scrollLeft = 0;
+    document.body.style.overflow = r.useDocScroll ? '' : 'hidden';
+    r.view.className = 'ehx-rscroll';
+    r.view.innerHTML = '';
+    r.view.scrollTop = 0;
+    r.view.scrollLeft = 0;
+    if (r.useDocScroll) window.scrollTo(0, 0);
     r.slotEls = [];
 
     if (r.mode === 'paged') buildPagedLayout(r);
@@ -4514,13 +4550,14 @@
       r.slotEls[i] = el;
       frag.appendChild(el);
     }
-    r.scroll.appendChild(frag);
+    r.view.appendChild(frag);
 
+    const ioRoot = r.useDocScroll ? null : r.view;
     r.ioLoad = new IntersectionObserver((entries) => {
       for (const en of entries) {
         if (en.isIntersecting) loadSlot(r, en.target);
       }
-    }, { root: r.scroll, rootMargin: '1400px 0px' });
+    }, { root: ioRoot, rootMargin: '1400px 0px' });
 
     const visible = new Map();
     r.ioVisible = new IntersectionObserver((entries) => {
@@ -4534,7 +4571,7 @@
         if (ratio >= 0.45 && (!best || ratio > best.ratio)) best = { idx: i, ratio };
       }
       if (best && best.idx !== r.index) setReaderIndex(r, best.idx, { scroll: false, fromVisible: true });
-    }, { root: r.scroll, threshold: [0, 0.15, 0.45, 0.7, 0.95] });
+    }, { root: ioRoot, threshold: [0, 0.15, 0.45, 0.7, 0.95] });
 
     for (let i = 1; i <= total; i++) {
       const el = r.slotEls[i];
@@ -4542,9 +4579,20 @@
     }
 
     loadSlot(r, r.slotEls[r.index]);
-    requestAnimationFrame(() => {
+    const jumpToCurrent = () => {
       const el = r.slotEls[r.index];
-      if (el) r.scroll.scrollTop = el.offsetTop;
+      if (!el) return;
+      if (r.useDocScroll) {
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior: 'auto' });
+      } else {
+        r.view.scrollTop = el.offsetTop;
+      }
+    };
+    // Do it now as well: background tabs throttle rAF, and switching from
+    // paged mode should land on the current page immediately.
+    jumpToCurrent();
+    requestAnimationFrame(() => {
+      jumpToCurrent();
       updateChrome(r);
     });
   }
@@ -4559,18 +4607,18 @@
         slides.push(`<div class="ehx-rpage" data-idx="${i}" style="aspect-ratio:auto;height:100dvh"></div>`);
       }
     }
-    r.scroll.innerHTML = slides.join('');
+    r.view.innerHTML = slides.join('');
     r.slotEls = [];
-    for (const el of Array.from(r.scroll.children)) {
+    for (const el of Array.from(r.view.children)) {
       if (el.dataset.idx) r.slotEls[parseInt(el.dataset.idx, 10)] = el;
     }
     for (let i = r.pagedBase; i <= r.pagedBase + 2; i++) {
       if (r.slotEls[i]) loadSlot(r, r.slotEls[i]);
     }
     requestAnimationFrame(() => {
-      const w = r.scroll.clientWidth;
+      const w = r.view.clientWidth;
       r.suppressScroll = true;
-      r.scroll.scrollLeft = w;
+      r.view.scrollLeft = w;
       setTimeout(() => { r.suppressScroll = false; }, 220);
     });
   }
@@ -4580,8 +4628,8 @@
     clearTimeout(r.pagedTimer);
     r.pagedTimer = setTimeout(() => {
       if (!reader || reader !== r) return;
-      const w = r.scroll.clientWidth || window.innerWidth;
-      const pos = Math.round(r.scroll.scrollLeft / w);
+      const w = r.view.clientWidth || window.innerWidth;
+      const pos = Math.round(r.view.scrollLeft / w);
       const target = r.pagedBase + pos;
       if (target !== r.index && target >= 1 && target <= (r.total || 1)) {
         setReaderIndex(r, target, { fromSwipe: true });
@@ -4693,7 +4741,13 @@
     if (r.mode === 'vertical') {
       if (opts.scroll !== false) {
         const el = r.slotEls[next];
-        if (el) r.scroll.scrollTo({ top: el.offsetTop, behavior: 'auto' });
+        if (el) {
+          if (r.useDocScroll) {
+            window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior: 'auto' });
+          } else {
+            r.view.scrollTop = el.offsetTop;
+          }
+        }
       }
     } else {
       renderReaderLayout(r);
@@ -4777,6 +4831,7 @@
     if (r.root && r.root.parentNode) r.root.remove();
     document.body.style.overflow = '';
     app.root.classList.remove('ehx-no-tabbar');
+    app.root.classList.remove('ehx-reading');
     renderTabbar();
   }
 
@@ -4812,6 +4867,8 @@
     document.body.appendChild(root);
     document.body.style.overflow = 'hidden';
     app.root.classList.add('ehx-no-tabbar');
+    app.root.classList.add('ehx-reading');
+    window.scrollTo(0, 0);
 
     let first = null;
     if (initialDoc) {
@@ -4825,12 +4882,14 @@
           root.remove();
           document.body.style.overflow = '';
           app.root.classList.remove('ehx-no-tabbar');
+          app.root.classList.remove('ehx-reading');
           return;
         }
         if (sadPanda(rec.doc) || loginPage(rec.doc)) {
           root.remove();
           document.body.style.overflow = '';
           app.root.classList.remove('ehx-no-tabbar');
+          app.root.classList.remove('ehx-reading');
           app.tab = 'home';
           renderTabbar();
           readerFallbackTopbar();
@@ -4845,6 +4904,7 @@
         if (opts.seq && opts.seq !== app.navSeq) return;
         document.body.style.overflow = '';
         app.root.classList.remove('ehx-no-tabbar');
+        app.root.classList.remove('ehx-reading');
         app.tab = 'home';
         renderTabbar();
         readerFallbackTopbar();
@@ -4857,6 +4917,7 @@
       root.remove();
       document.body.style.overflow = '';
       app.root.classList.remove('ehx-no-tabbar');
+      app.root.classList.remove('ehx-reading');
       app.tab = 'home';
       renderTabbar();
       readerFallbackTopbar();
@@ -4926,7 +4987,8 @@
       <div class="ehx-rscroll"></div>
       <div class="ehx-rchrome"></div>
       <div class="ehx-rhint"></div>`;
-    r.scroll = root.querySelector('.ehx-rscroll');
+    r.view = root.querySelector('.ehx-rscroll');
+    r.useDocScroll = false;
     r.chrome = root.querySelector('.ehx-rchrome');
 
     buildReaderChrome(r);
@@ -5031,7 +5093,7 @@
   }
 
   function bindReaderEvents(r) {
-    r.scroll.addEventListener('scroll', () => {
+    r.view.addEventListener('scroll', () => {
       if (r.mode === 'paged') onPagedScroll(r);
     }, { passive: true });
 
@@ -5078,18 +5140,18 @@
     });
 
     let touch = null;
-    r.scroll.addEventListener('touchstart', (e) => {
+    r.view.addEventListener('touchstart', (e) => {
       const t = e.touches[0];
       if (t) touch = { x: t.clientX, y: t.clientY };
       r.swiped = false;
     }, { passive: true });
-    r.scroll.addEventListener('touchmove', (e) => {
+    r.view.addEventListener('touchmove', (e) => {
       if (!touch) return;
       const t = e.touches[0];
       if (!t) return;
       if (Math.abs(t.clientX - touch.x) > 12 || Math.abs(t.clientY - touch.y) > 12) r.swiped = true;
     }, { passive: true });
-    r.scroll.addEventListener('touchend', () => {
+    r.view.addEventListener('touchend', () => {
       setTimeout(() => { r.swiped = false; }, 320);
     }, { passive: true });
 

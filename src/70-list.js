@@ -8,6 +8,7 @@
   const FAVORITES_TTL = 300000;
   const FAV_STORE = 'favorites';
   const favRefreshing = new Set();
+  let favEpoch = 0;
 
   function persistFavorites(url, data) {
     persistFavoritesEntry(url, data);
@@ -22,6 +23,7 @@
   // Clear the in-memory list, the IndexedDB copy, the back-navigation memory
   // and any cached favorites HTML so the next visit fetches fresh data.
   function clearFavoritesCache() {
+    favEpoch += 1;
     try { favoritesCache.clear(); } catch { /* not initialised */ }
     try { store.del(FAV_STORE); } catch { /* noop */ }
     try { idbClear('favorites').catch(() => { /* noop */ }); } catch { /* noop */ }
@@ -40,8 +42,10 @@
   function backgroundFavoritesRefresh(url) {
     if (favRefreshing.has(url)) return;
     favRefreshing.add(url);
+    const epoch = favEpoch;
     fetchDoc(url, { force: true })
       .then((rec) => {
+        if (epoch !== favEpoch) return;
         const d = parseList(rec.doc, rec.url);
         if (!d.loggedOut && !d.sad) {
           favoritesCache.set(url, { at: Date.now(), data: d });
@@ -146,14 +150,17 @@
 
   async function preloadFavorites() {
     if (app.route && (app.route.name === 'reader' || app.route.kind === 'favorites.php')) return;
+    const epoch = favEpoch;
     const url = canonicalListUrl('/favorites.php');
     const persisted = await persistedFavorites(url);
+    if (epoch !== favEpoch) return;
     if (persisted && !favoritesCache.has(url)) favoritesCache.set(url, { at: persisted.at, data: persisted.data });
     const hit = favoritesCache.get(url);
     const weakHit = hit && hit.data && hit.data.items && hit.data.items.length && hit.data.items.every((g) => !g.cover);
     if (hit && !weakHit && Date.now() - hit.at < FAVORITES_TTL) return;
     fetchDoc(url, { ttl: 120000 })
       .then((rec) => {
+        if (epoch !== favEpoch) return;
         const data = parseList(rec.doc, rec.url);
         if (!data.loggedOut && !data.sad) {
           favoritesCache.set(url, { at: Date.now(), data });
@@ -243,6 +250,7 @@
     const title = listTitle(route, url);
     const isFav = route.kind === 'favorites.php';
     const favUrl = isFav ? canonicalListUrl(url) : '';
+    const favEpochAtStart = favEpoch;
 
     // Draw the shell immediately.
     const isTab = !q && ['home', 'popular', 'favorites.php', 'watched'].includes(route.kind);
@@ -332,7 +340,7 @@
       return;
     }
 
-    if (isFav && !fromCache) {
+    if (isFav && !fromCache && favEpochAtStart === favEpoch) {
       favoritesCache.set(favUrl, { at: Date.now(), data });
       persistFavorites(favUrl, data);
     }
