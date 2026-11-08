@@ -72,7 +72,7 @@ npm run test:safari:mcp   # Safari MCP stdio harness
   `executablePath` if needed).
 - Gallery HTML is delayed by 700 ms in the UI test so the instant detail preview
   can be asserted before the full page renders.
-- Current expectation: **104 parser / 125 UI** assertions, both suites must pass
+- Current expectation: **104 parser / 130 UI** assertions, both suites must pass
   before a release.
 
 ### Fixtures of note
@@ -270,6 +270,12 @@ stale async renders after the user navigates again.
   site sheet holds 40, so the second half is sliced client-side (`?ph=1`) and
   needs no second request; `gt200` holds 20. The pager counts app pages, not
   site sheets, and `resolvePageUrl` still uses the site's `thumbsPerPage`.
+- `Jump` on the Pages header asks for an **image** page, maps it to the app
+  thumbnail page (`Math.floor((n-1)/20)`) and either highlights the thumb in
+  place or sets `pendingThumbJump`, navigates to that thumbnail page and
+  scrolls/highlights `#ehx-thumbs [data-idx]` after the render. It does not open
+  the reader. `.ehx-thumb-target` is the highlight; `.ehx-thumbctl` keeps 58px
+  bottom padding so the scroll-to-top FAB cannot cover the prev/next buttons.
 - When the user is on the second half of a 40-thumb sheet, the next site page's
   HTML and first sprite are warmed in the background. This is the only async
   boundary available: the site gives one image per 20/40 previews, so all

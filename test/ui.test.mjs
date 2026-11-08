@@ -708,6 +708,21 @@ try {
   await page.waitForFunction(() => document.querySelector('.ehx-thumbctl .ehx-grow')?.textContent.includes('3 / 5'), { timeout: 5000 });
   ok('next sheet starts at page 41', /-41$/.test(await page.$eval('.ehx-thumb', (a) => a.getAttribute('href'))), await page.$eval('.ehx-thumb', (a) => a.getAttribute('href')));
 
+  console.log('\nJump to thumbnail page');
+  await page.evaluate(() => document.querySelector('[data-act="jump-page"]').click());
+  await page.waitForSelector('#ehx-jump-input', { timeout: 5000 });
+  await page.$eval('#ehx-jump-input', (el) => { el.value = '21'; });
+  await page.evaluate(() => document.querySelector('[data-x="go"]').click());
+  await page.waitForFunction(() => location.search.includes('ph=1'), { timeout: 6000 });
+  await page.waitForFunction(() => document.querySelector('.ehx-thumbctl .ehx-grow')?.textContent.includes('2 / 5'), { timeout: 6000 });
+  await page.waitForSelector('.ehx-thumb.ehx-thumb-target', { timeout: 4000 });
+  ok('jump stays on the detail page', (await page.evaluate(() => location.pathname)).startsWith('/g/'), await page.evaluate(() => location.href));
+  const pagesTitle = await page.evaluate(() => Array.from(document.querySelectorAll('.ehx-section-title')).map((el) => el.textContent).find((t) => /Showing/.test(t)) || '');
+  ok('jump lands on the thumbnail page', pagesTitle.includes('21–40'), pagesTitle);
+  ok('jump highlights the image thumbnail', await count('.ehx-thumb.ehx-thumb-target') === 1, String(await count('.ehx-thumb.ehx-thumb-target')));
+  ok('highlighted thumb is page 21', /-21$/.test(await page.$eval('.ehx-thumb.ehx-thumb-target', (a) => a.getAttribute('href'))), await page.$eval('.ehx-thumb.ehx-thumb-target', (a) => a.getAttribute('href')));
+  ok('thumbnail pager clears the scroll FAB', parseFloat(await page.$eval('.ehx-thumbctl', (el) => getComputedStyle(el).paddingBottom)) >= 50, await page.$eval('.ehx-thumbctl', (el) => getComputedStyle(el).paddingBottom));
+
   console.log('\nMissing gallery message');
   await page.goto(BASE + '/g/999999999/abcdef1234/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.ehx-empty', { timeout: 8000 });

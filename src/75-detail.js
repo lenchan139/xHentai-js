@@ -2,6 +2,22 @@
   // Gallery detail page
   // ---------------------------------------------------------------------------
 
+  // Set by the Jump dialog, consumed by the next detail render so the grid
+  // can scroll to and highlight the requested image thumbnail.
+  let pendingThumbJump = 0;
+
+  function highlightThumb(n) {
+    const grid = document.getElementById('ehx-thumbs');
+    if (!grid) return;
+    const el = grid.querySelector(`[data-idx="${n}"]`);
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'auto' });
+      el.classList.add('ehx-thumb-target');
+    } else {
+      grid.scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+  }
+
   function detailPageUrl(galleryUrl, page) {
     try {
       const u = new URL(galleryUrl, location.href);
@@ -31,7 +47,7 @@
         ? `<div class="ehx-thumb-inner" data-sprite="${esc(t.sprite)}" data-ox="${t.offX}" data-oy="${t.offY}" style="width:${t.w}px;height:${t.h}px"></div>`
         : `<img loading="lazy" decoding="async" src="${esc(t.img)}" alt="">`;
       const ratio = t.sprite ? `${t.w}/${t.h}` : `${t.w}/${t.h}`;
-      return `<a class="ehx-thumb${currentIndex === t.idx ? ' ehx-read' : ''}${t.sprite ? ' ehx-thumb-loading' : ''}" href="${esc(t.href)}" style="aspect-ratio:${ratio}">
+      return `<a class="ehx-thumb${currentIndex === t.idx ? ' ehx-read' : ''}${t.sprite ? ' ehx-thumb-loading' : ''}" data-idx="${t.idx}" href="${esc(t.href)}" style="aspect-ratio:${ratio}">
         ${sprite}<span class="ehx-thumb-num">${t.idx}</span>
       </a>`;
     }).join('');
@@ -343,6 +359,15 @@
         <div style="height:18px"></div>
       </div>`;
 
+    if (pendingThumbJump) {
+      const jumpIdx = pendingThumbJump;
+      pendingThumbJump = 0;
+      // Apply the class now (background tabs throttle rAF); the rAF corrects
+      // the scroll position after layout settles.
+      highlightThumb(jumpIdx);
+      requestAnimationFrame(() => highlightThumb(jumpIdx));
+    }
+
     // Thumbnail sprite scaling. The sprite sheet lives on a slow random
     // hath.network host, so don't request it until the grid is near the
     // viewport — it used to compete with the hero cover on first paint.
@@ -478,21 +503,26 @@
     onAction('thumb-next', () => goThumbAppPage(appPage + 1));
 
     onAction('jump-page', () => {
+      const maxPage = totalThumbPages || totalPages || 1;
       const s = openSheet({
-        title: 'Jump to page',
-        body: `<div class="ehx-field"><label class="ehx-label">Page number</label><input class="ehx-input" id="ehx-jump-input" type="number" inputmode="numeric" min="1" max="${totalPages || 1}" value="${progress ? progress.index : 1}"></div>
-          <p style="font-size:11.5px;color:var(--muted2);line-height:1.5;margin:0 0 4px">Total: ${formatNum(totalPages)} pages.</p>`,
-        footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="go">Open page</button>`,
+        title: 'Jump to thumbnail',
+        body: `<div class="ehx-field"><label class="ehx-label">Image page</label><input class="ehx-input" id="ehx-jump-input" type="number" inputmode="numeric" min="1" max="${maxPage}" value="${clamp((progress && progress.index) || 1, 1, maxPage)}"></div>
+          <p style="font-size:11.5px;color:var(--muted2);line-height:1.5;margin:0 0 4px">Shows the thumbnail page containing this image. ${formatNum(maxPage)} images in ${Math.max(1, pageCount)} thumbnail pages.</p>`,
+        footer: `<button class="ehx-btn" data-x="cancel">Cancel</button><button class="ehx-btn ehx-btn-primary" data-x="go">Show</button>`,
       });
-      s.sheet.addEventListener('click', async (e) => {
+      s.sheet.addEventListener('click', (e) => {
         const b = e.target.closest('[data-x]');
         if (!b) return;
         if (b.dataset.x === 'cancel') { s.close(); return; }
-        const n = clamp(num($('#ehx-jump-input', s.sheet).value) || 1, 1, totalPages || 1);
+        const n = clamp(num($('#ehx-jump-input', s.sheet).value) || 1, 1, maxPage);
         s.close();
-        const pageUrl = (data.thumbs.find((t) => t.idx === n) || {}).href || await resolvePageUrl(gid, token, n);
-        if (pageUrl) navigate(pageUrl);
-        else toast('Could not find that page');
+        const targetAppPage = Math.floor((n - 1) / DISPLAY_PER);
+        if (targetAppPage === appPage) {
+          highlightThumb(n);
+          return;
+        }
+        pendingThumbJump = n;
+        goThumbAppPage(targetAppPage);
       });
     });
 

@@ -415,7 +415,8 @@
     background:rgba(0,0,0,.65);color:#fff;border-radius:4px;padding:1px 4px;
   }
   .ehx-thumb.ehx-read:after{content:"";position:absolute;inset:0;border:2px solid var(--accent);border-radius:9px;pointer-events:none}
-  .ehx-thumbctl{display:flex;align-items:center;gap:8px;padding:0 calc(14px + var(--sar)) 10px calc(14px + var(--sal))}
+  .ehx-thumb.ehx-thumb-target{box-shadow:inset 0 0 0 2px var(--accent),0 0 0 2px var(--accent)}
+  .ehx-thumbctl{display:flex;align-items:center;gap:8px;padding:0 calc(14px + var(--sar)) 58px calc(14px + var(--sal))}
   .ehx-thumbctl .ehx-grow{font-size:11.5px;color:var(--muted)}
 
   /* ---------- Reader ---------- */
